@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="ru" data-i18n-page="adminEdit">
+<head>
+    <meta charset="UTF-8">
+    <title data-i18n="pageTitle">Редактирование заявки — MEmarket</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="{{ url_for('static', filename='js/i18n.js') }}" defer data-locale-url="{{ url_for('main.locale_file', locale='ru') }}"></script>
+</head>
+<body>
+    <header>
+        <div class="header-top">
+            <div class="logo-area">
+                <div class="logo-text">Millennium Market</div>
+                <div class="submit-label">Submit</div>
+                <img class="submit-arrow" src="{{ url_for('static', filename='arrow.svg') }}" alt="">
+                <div class="submit-label">Управление</div>
+            </div>
+        </div>
+    </header>
+
+    <main class="admin-page edit-page">
+        <p class="site-description"><a href="{{ url_for('admin.admin_panel') }}">Назад</a></p>
+        <h1 class="submit-heading">Редактирование заявки</h1>
+        <p class="site-description">Пакет и иконка сохраняются. Здесь можно изменить данные карточки приложения.</p>
+
+        <form method="POST" class="edit-form">
+            <div class="form-card">
+                <label for="name">Название приложения:</label>
+                <input type="text" id="name" name="name" value="{{ submission['name'] }}" required>
+            </div>
+            <div class="form-card">
+                <label for="developer">Разработчик:</label>
+                <input type="text" id="developer" name="developer" value="{{ submission['developer'] }}" required>
+            </div>
+            <div class="form-card">
+                <label for="category">Категория:</label>
+                <select id="category" name="category" required>
+                    {% for value, label in categories %}
+                        <option value="{{ value }}" {% if submission['category'] == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-card">
+                <label for="summary_type">Тип краткого описания:</label>
+                <select id="summary_type" name="summary_type">
+                    <option value="static" {% if submission['summary_type'] == 'static' %}selected{% endif %}>Одноязычное</option>
+                    <option value="multilingual" {% if submission['summary_type'] == 'multilingual' %}selected{% endif %}>Мультиязычное</option>
+                </select>
+                <input type="text" name="summary_static" value="{{ submission['summary_static'] or '' }}" placeholder="Одноязычное описание" class="edit-input-gap">
+                <input type="text" name="summary_ru" value="{{ submission['summary_ru'] or '' }}" placeholder="Описание на русском" class="edit-input-gap">
+                <input type="text" name="summary_en" value="{{ submission['summary_en'] or '' }}" placeholder="Description in English" class="edit-input-gap">
+            </div>
+            <div class="form-card">
+                <label for="desc_type">Тип полного описания:</label>
+                <select id="desc_type" name="desc_type">
+                    <option value="static" {% if submission['desc_type'] == 'static' %}selected{% endif %}>Одноязычное</option>
+                    <option value="multilingual" {% if submission['desc_type'] == 'multilingual' %}selected{% endif %}>Мультиязычное</option>
+                </select>
+                <textarea name="desc_static" rows="6" placeholder="Полное описание">{{ submission['desc_static'] or '' }}</textarea>
+                <textarea name="desc_ru" rows="5" placeholder="Описание на русском" class="edit-input-gap">{{ submission['desc_ru'] or '' }}</textarea>
+                <textarea name="desc_en" rows="5" placeholder="Description in English" class="edit-input-gap">{{ submission['desc_en'] or '' }}</textarea>
+            </div>
+            <div class="edit-actions">
+                <button type="submit" class="admin-btn btn-approve">Сохранить изменения</button>
+                <a href="{{ url_for('admin.admin_panel') }}" class="admin-btn btn-reject">Отмена</a>
+            </div>
+        </form>
+    </main>
+
+    <footer>
+        <div class="footer-bottom">
+            <p data-i18n="copyright">© kameton.dev</p>
+            <div class="language-switcher">
+                <label for="language-select" data-i18n="languageLabel">Язык</label>
+                <select id="language-select" aria-label="Язык" data-i18n-aria-label="languageLabel">
+                    <option value="ru" data-i18n="russian">Русский</option>
+                    <option value="en" data-i18n="english">English</option>
+                </select>
+            </div>
+        </div>
+    </footer>
+</body>
+</html>

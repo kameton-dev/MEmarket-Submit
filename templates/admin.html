@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="ru" data-i18n-page="admin">
+<head>
+    <meta charset="UTF-8">
+    <title data-i18n="pageTitle">Панель модерации MEmarket</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="{{ url_for('static', filename='js/i18n.js') }}" defer data-locale-url="{{ url_for('main.locale_file', locale='ru') }}"></script>
+</head>
+<body>
+    <header>
+        <div class="header-top">
+            <div class="logo-area">
+                <div class="logo-text">Millennium Market</div>
+                <div class="submit-label">Submit</div>
+                <img class="submit-arrow" src="{{ url_for('static', filename='arrow.svg') }}" alt="">
+                <div class="submit-label">Управление</div>
+            </div>
+        </div>
+    </header>
+
+    <main class="admin-page">
+        <h1 class="submit-heading">Управление MEmarket Submit</h1>
+        <p class="site-description"><a href="/">На главную</a></p>
+        <nav class="pivot-header" role="tablist" aria-label="Разделы панели модерации">
+            <button type="button" class="pivot-item active" id="admin-apps-tab" role="tab" aria-selected="true" aria-controls="admin-apps-panel" data-pivot-target="admin-apps-panel">приложения</button>
+            <button type="button" class="pivot-item" id="admin-accounts-tab" role="tab" aria-selected="false" aria-controls="admin-accounts-panel" data-pivot-target="admin-accounts-panel" tabindex="-1">аккаунты</button>
+        </nav>
+
+        <section class="pivot-panel" id="admin-apps-panel" role="tabpanel" aria-labelledby="admin-apps-tab">
+            {% if submissions %}
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 80px; text-align: center;">Иконка</th>
+                            <th>Название</th>
+                            <th>App ID</th>
+                            <th>Разработчик</th>
+                            <th>Категория</th>
+                            <th>Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for sub in submissions %}
+                            <tr class="admin-row" data-preview-url="{{ url_for('admin.preview_submission', sub_id=sub[0]) }}" onclick="if (!event.target.closest('a, button, form, input')) { window.location.href = this.dataset.previewUrl; }">
+                                <td style="text-align: center; vertical-align: middle;">
+                                    <a href="{{ url_for('admin.preview_submission', sub_id=sub[0]) }}">
+                                        {% if sub[5] %}
+                                            <img src="{{ url_for('admin.serve_pending_files', filepath=(sub[7] or sub[1]) ~ '/' ~ sub[5]) }}" alt="Иконка приложения" style="width: 48px; height: 48px; background: #141414; object-fit: contain;">
+                                        {% else %}
+                                            <span>—</span>
+                                        {% endif %}
+                                    </a>
+                                </td>
+                                <td>
+                                    <a class="admin-app-link" href="{{ url_for('admin.preview_submission', sub_id=sub[0]) }}"><strong>{{ sub[2] }}</strong></a>
+                                    {% if sub[8] == 'update' %}<br><small>Обновление {{ sub[9] or 'без версии' }}</small>{% endif %}
+                                </td>
+                                <td><a class="admin-app-link" href="{{ url_for('admin.preview_submission', sub_id=sub[0]) }}"><code>{{ sub[1] }}</code></a></td>
+                                <td>{{ sub[3] }}</td>
+                                <td data-i18n-category="{{ sub[4] }}">{{ sub[4] }}</td>
+                                <td>
+                                    {% if sub[8] != 'update' %}<a href="{{ url_for('admin.edit_submission', sub_id=sub[0]) }}" class="admin-btn btn-edit">Редактировать</a>{% endif %}
+                                    <a href="{{ url_for('admin.download_pending_package', sub_id=sub[0]) }}" class="admin-btn btn-download">Загрузить пакет</a>
+                                    <form action="/admin/approve/{{ sub[0] }}" method="POST">
+                                        <button type="submit" class="admin-btn btn-approve">Одобрить и залить</button>
+                                    </form>
+                                    <form action="/admin/reject/{{ sub[0] }}" method="POST">
+                                        <button type="submit" class="admin-btn btn-reject">Отклонить</button>
+                                    </form>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <p>Нет заявок на модерацию.</p>
+            {% endif %}
+
+            <section class="developer-section">
+                <h2>Запросы на подтверждение авторства</h2>
+                {% if claims %}
+                    {% for claim in claims %}
+                        <article class="developer-app-card">
+                            <h3>{{ claim['app_id'] }} — {{ claim['publisher_name'] }}</h3>
+                            <p>{{ claim['email'] }}</p>
+                            {% if claim['current_owner'] %}
+                                <p>Текущий владелец: {{ claim['current_owner'] }}</p>
+                            {% else %}
+                                <p>Владелец пока не назначен.</p>
+                            {% endif %}
+                            <p class="preview-text">{{ claim['proof'] }}</p>
+                            <form method="post" action="{{ url_for('admin.approve_claim', claim_id=claim['id']) }}">
+                                <button type="submit" class="admin-btn btn-approve">Подтвердить автора</button>
+                            </form>
+                            <form method="post" action="{{ url_for('admin.reject_claim', claim_id=claim['id']) }}">
+                                <button type="submit" class="admin-btn btn-reject">Отклонить запрос</button>
+                            </form>
+                        </article>
+                    {% endfor %}
+                {% else %}
+                    <p>Нет запросов на подтверждение авторства.</p>
+                {% endif %}
+            </section>
+        </section>
+
+        <section class="pivot-panel" id="admin-accounts-panel" role="tabpanel" aria-labelledby="admin-accounts-tab" hidden>
+            <h2>Аккаунты разработчиков</h2>
+            {% if developer_accounts %}
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th>Издатель</th>
+                            <th>Email</th>
+                            <th>Приложения</th>
+                            <th>Дата регистрации</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for account in developer_accounts %}
+                            <tr>
+                                <td>{{ account['publisher_name'] }}</td>
+                                <td>{{ account['email'] }}</td>
+                                <td>{{ account['app_count'] }}</td>
+                                <td>{{ account['created_at'] }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <p>Аккаунтов разработчиков пока нет.</p>
+            {% endif %}
+        </section>
+    </main>
+    <script>
+        document.querySelectorAll('[data-pivot-target]').forEach(function(tab) {
+            tab.addEventListener('click', function() {
+                var tabs = tab.closest('[role="tablist"]').querySelectorAll('[data-pivot-target]');
+                tabs.forEach(function(item) {
+                    var isActive = item === tab;
+                    item.classList.toggle('active', isActive);
+                    item.setAttribute('aria-selected', String(isActive));
+                    item.tabIndex = isActive ? 0 : -1;
+                    document.getElementById(item.dataset.pivotTarget).hidden = !isActive;
+                });
+            });
+        });
+    </script>
+
+    <footer>
+        <div class="footer-bottom">
+            <p data-i18n="copyright">© kameton.dev</p>
+            <div class="language-switcher">
+                <label for="language-select" data-i18n="languageLabel">Язык</label>
+                <select id="language-select" aria-label="Язык" data-i18n-aria-label="languageLabel">
+                    <option value="ru" data-i18n="russian">Русский</option>
+                    <option value="en" data-i18n="english">English</option>
+                </select>
+            </div>
+        </div>
+    </footer>
+</body>
+</html>

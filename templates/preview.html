@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="ru" data-i18n-page="preview">
+<head>
+    <meta charset="UTF-8">
+    <title data-i18n="pageTitle" data-i18n-app="{{ submission['name'] }}">{{ submission['name'] }} — Предпросмотр</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="{{ url_for('static', filename='js/i18n.js') }}" defer data-locale-url="{{ url_for('main.locale_file', locale='ru') }}"></script>
+</head>
+<body>
+    <header>
+        <div class="header-top">
+            <div class="logo-area">
+                <div class="logo-text">Millennium Market</div>
+                <div class="submit-label">Submit</div>
+                <img class="submit-arrow" src="{{ url_for('static', filename='arrow.svg') }}" alt="">
+                <div class="submit-label">Модерация</div>
+            </div>
+        </div>
+    </header>
+
+    <main class="admin-page preview-page">
+        <p class="site-description"><a href="{{ url_for('admin.admin_panel') }}">Назад</a></p>
+
+        {% if submission['temp_banner_name'] %}
+            <img class="app-banner" src="{{ url_for('admin.serve_pending_files', filepath=(submission['storage_key'] or submission['app_id']) ~ '/' ~ submission['temp_banner_name']) }}" alt="Баннер {{ submission['name'] }}">
+        {% endif %}
+
+        <section class="app-preview-hero">
+            <div class="app-preview-icon">
+                {% if submission['temp_icon_name'] %}
+                    <img src="{{ url_for('admin.serve_pending_files', filepath=(submission['storage_key'] or submission['app_id']) ~ '/' ~ submission['temp_icon_name']) }}" alt="Иконка {{ submission['name'] }}">
+                {% else %}
+                    <span>Нет иконки</span>
+                {% endif %}
+            </div>
+            <div>
+                <p class="preview-kicker">Предпросмотр заявки</p>
+                <h1 class="submit-heading">{{ submission['name'] }}</h1>
+                <p class="preview-meta">{{ submission['developer'] }} · <span data-i18n-category="{{ submission['category'] }}">{{ submission['category'] }}</span> · <code>{{ submission['app_id'] }}</code></p>
+            </div>
+        </section>
+
+        <section class="preview-grid">
+            <div class="preview-content">
+                <div class="preview-panel">
+                    <h2>Описание</h2>
+                    {% if submission['desc_type'] == 'static' %}
+                        <div class="preview-text">{{ submission['desc_static'] or 'Описание не заполнено.' }}</div>
+                    {% else %}
+                        <h3>Русский</h3>
+                        <div class="preview-text">{{ submission['desc_ru'] or 'Описание не заполнено.' }}</div>
+                        <h3>English</h3>
+                        <div class="preview-text">{{ submission['desc_en'] or 'Description is empty.' }}</div>
+                    {% endif %}
+                </div>
+
+                {% if screenshot_names %}
+                    <div class="preview-panel">
+                        <h2>Скриншоты</h2>
+                        <div class="preview-screenshots">
+                            {% for screenshot_name in screenshot_names %}
+                                <img src="{{ url_for('admin.serve_pending_files', filepath=(submission['storage_key'] or submission['app_id']) ~ '/screenshots/' ~ screenshot_name) }}" alt="Скриншот {{ loop.index }}">
+                            {% endfor %}
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+
+            <aside class="preview-panel manifest-preview">
+                <h2>Данные приложения</h2>
+                <dl class="manifest-details">
+                    <dt>Краткое описание</dt>
+                    <dd>{% if submission['summary_type'] == 'static' %}{{ submission['summary_static'] or 'Не заполнено' }}{% else %}RU: {{ submission['summary_ru'] or '—' }}; EN: {{ submission['summary_en'] or '—' }}{% endif %}</dd>
+                    {% for key, value in manifest_info.items() %}
+                        <dt>{{ key|replace('_', ' ') }}</dt>
+                        <dd>{{ value }}</dd>
+                    {% endfor %}
+                </dl>
+            </aside>
+        </section>
+    </main>
+
+    <footer>
+        <div class="footer-bottom">
+            <p data-i18n="copyright">© kameton.dev</p>
+            <div class="language-switcher">
+                <label for="language-select" data-i18n="languageLabel">Язык</label>
+                <select id="language-select" aria-label="Язык" data-i18n-aria-label="languageLabel">
+                    <option value="ru" data-i18n="russian">Русский</option>
+                    <option value="en" data-i18n="english">English</option>
+                </select>
+            </div>
+        </div>
+    </footer>
+</body>
+</html>

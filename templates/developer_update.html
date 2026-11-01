@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="ru" data-i18n-page="developerUpdate">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title data-i18n="pageTitle" data-i18n-app="{{ app['app_id'] }}">Обновление {{ app['app_id'] }} — MEmarket</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="{{ url_for('static', filename='js/i18n.js') }}" defer data-locale-url="{{ url_for('main.locale_file', locale='ru') }}"></script>
+</head>
+<body>
+    <header>
+        <div class="header-top developer-header">
+            <div class="logo-area">
+                <div class="logo-text">Millennium Market</div>
+                <div class="submit-label">Submit</div>
+                <img class="submit-arrow" src="{{ url_for('static', filename='arrow.svg') }}" alt="">
+                <div class="submit-label">Разработчикам</div>
+            </div>
+        </div>
+    </header>
+    <main class="submit-page">
+        <p class="site-description"><a href="{{ url_for('developer.dashboard') }}">Назад</a></p>
+        <h1 class="submit-heading">Обновление приложения</h1>
+        <p class="site-description"><code>{{ app['app_id'] }}</code> · <span data-i18n="currentVersion">Текущая версия:</span> {{ app['version'] or 'не определена' }}</p>
+        {% for category, message in get_flashed_messages(with_categories=true) %}
+            <p class="developer-notice {{ category }}">{{ message }}</p>
+        {% endfor %}
+        {% if pending_update %}
+            <p class="developer-notice error">Обновление находится на модерации. Ожидайте</p>
+        {% else %}
+            <form method="post" enctype="multipart/form-data" class="developer-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <label for="app_file">Новый пакет (.xap/.appx/.appxbundle)</label>
+                <input id="app_file" name="app_file" type="file" accept=".xap,.appx,.appxbundle" required>
+                <p class="file-hint">App ID не должен отличаться от текущего; версия в манифесте должна быть строго новее опубликованной</p>
+                <button type="submit">Отправить на модерацию</button>
+            </form>
+        {% endif %}
+    </main>
+
+    <footer>
+        <div class="footer-bottom">
+            <p data-i18n="copyright">© kameton.dev</p>
+            <div class="language-switcher">
+                <label for="language-select" data-i18n="languageLabel">Язык</label>
+                <select id="language-select" aria-label="Язык" data-i18n-aria-label="languageLabel">
+                    <option value="ru" data-i18n="russian">Русский</option>
+                    <option value="en" data-i18n="english">English</option>
+                </select>
+            </div>
+        </div>
+    </footer>
+</body>
+</html>

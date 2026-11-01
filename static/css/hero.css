@@ -1,0 +1,19 @@
+.submit-heading {
+    margin-bottom: 8px;
+    font-size: 36px;
+    font-weight: 600;
+    line-height: 1.2;
+}
+
+.site-description {
+    max-width: 760px;
+    margin-bottom: 34px;
+    color: var(--muted-text);
+    font-size: 15px;
+    line-height: 1.6;
+}
+
+.site-description a {
+    color: var(--accent-color);
+}
+

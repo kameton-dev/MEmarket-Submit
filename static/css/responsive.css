@@ -1,0 +1,18 @@
+@media (max-width: 600px) {
+    .header-top, .submit-page { padding-left: 14px; padding-right: 14px; }
+    .submit-page { padding-top: 28px; }
+    .submit-heading { font-size: 30px; }
+    .file-upload-box { gap: 14px; padding: 14px; }
+    .upload-icon { width: 56px; height: 56px; flex-basis: 56px; }
+    #upload-status { font-size: 16px; }
+    .manifest-details { grid-template-columns: 1fr; gap: 3px; }
+    .manifest-details dd { margin-bottom: 8px; }
+    .admin-page { padding: 28px 14px 60px; overflow-x: auto; }
+    .admin-table { min-width: 760px; }
+    .app-preview-hero { align-items: flex-start; flex-direction: column; padding: 20px; }
+    .preview-grid { grid-template-columns: 1fr; }
+    .manifest-preview .manifest-details { grid-template-columns: 1fr; }
+    .developer-nav, .developer-header, .developer-section-heading { align-items: flex-start; flex-direction: column; }
+    .pivot-header { gap: 18px; }
+    .pivot-item { font-size: 26px; }
+}

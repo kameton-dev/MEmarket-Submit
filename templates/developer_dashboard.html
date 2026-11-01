@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="ru" data-i18n-page="developerDashboard">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title data-i18n="pageTitle">Кабинет разработчика — MEmarket</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="{{ url_for('static', filename='js/i18n.js') }}" defer data-locale-url="{{ url_for('main.locale_file', locale='ru') }}"></script>
+</head>
+<body>
+    <header>
+        <div class="header-top developer-header">
+            <div class="logo-area">
+                <div class="logo-text">Millennium Market</div>
+                <div class="submit-label">Submit</div>
+                <img class="submit-arrow" src="{{ url_for('static', filename='arrow.svg') }}" alt="">
+                <div class="submit-label">Разработчикам</div>
+            </div>
+        </div>
+    </header>
+    <main class="admin-page">
+        <p class="site-description"><a href="/">На главную</a></p>
+        <h1 class="submit-heading"><span data-i18n="dashboardHeading">Личный кабинет</span> {{ developer['publisher_name'] }}</h1>
+        <p class="site-description">{{ developer['email'] }}</p>
+
+        {% for category, message in get_flashed_messages(with_categories=true) %}
+            <p class="developer-notice {{ category }}">{{ message }}</p>
+        {% endfor %}
+
+        <nav class="pivot-header" role="tablist" aria-label="Разделы кабинета разработчика">
+            <button type="button" class="pivot-item active" id="developer-account-tab" role="tab" aria-selected="true" aria-controls="developer-account-panel" data-pivot-target="developer-account-panel">аккаунт</button>
+            <button type="button" class="pivot-item" id="developer-apps-tab" role="tab" aria-selected="false" aria-controls="developer-apps-panel" data-pivot-target="developer-apps-panel" tabindex="-1">мои приложения</button>
+            <button type="button" class="pivot-item" id="developer-claims-tab" role="tab" aria-selected="false" aria-controls="developer-claims-panel" data-pivot-target="developer-claims-panel" tabindex="-1">мои запросы</button>
+        </nav>
+
+        <section class="pivot-panel" id="developer-account-panel" role="tabpanel" aria-labelledby="developer-account-tab">
+            <section class="developer-section">
+                <h2>Сведения</h2>
+                <p><strong>Никнейм:</strong> {{ developer['publisher_name'] }}</p>
+                <p><strong>Email:</strong> {{ developer['email'] }}</p>
+                <h2>Действия</h2>
+                <form method="post" action="{{ url_for('developer.logout') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button class="admin-btn btn-download" type="submit">Выйти</button>
+                </form>
+
+                <section class="account-security-section">
+                    <h2>Изменить пароль</h2>
+                    <form method="post" action="{{ url_for('developer.change_password') }}" class="developer-form">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <label for="current-password">Текущий пароль</label>
+                        <input id="current-password" name="current_password" type="password" autocomplete="current-password" required>
+                        <label for="new-password">Новый пароль</label>
+                        <input id="new-password" name="new_password" type="password" minlength="12" autocomplete="new-password" required>
+                        <label for="confirm-password">Повторите новый пароль</label>
+                        <input id="confirm-password" name="confirm_password" type="password" minlength="12" autocomplete="new-password" required>
+                        <p class="file-hint">Минимум 12 символов.</p>
+                        <button type="submit">Сохранить новый пароль</button>
+                    </form>
+                </section>
+
+                <section class="account-danger-zone">
+                    <h2>Удалить аккаунт</h2>
+                    <p>Удаляет ваш аккаунт навсегда и безвозмездно</p>
+                    <form method="post" action="{{ url_for('developer.delete_account') }}" class="developer-form">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <label for="delete-publisher-name">Введите никнейм аккаунта для подтверждения: {{ developer['publisher_name'] }}</label>
+                        <input id="delete-publisher-name" name="publisher_name" type="text" maxlength="80" autocomplete="off" required>
+                        <label class="account-delete-option" for="delete-apps">
+                            <input id="delete-apps" name="delete_apps" type="checkbox" value="yes">
+                            <span>Удалить все мои опубликованные приложения из репозитория</span>
+                        </label>
+                        <button class="admin-btn btn-reject" type="submit">Удалить аккаунт</button>
+                    </form>
+                </section>
+            </section>
+        </section>
+
+        <section class="pivot-panel" id="developer-apps-panel" role="tabpanel" aria-labelledby="developer-apps-tab" hidden>
+            <section class="developer-section">
+                <div class="developer-section-heading">
+                    <h2>Мои приложения</h2>
+                    <a class="admin-btn btn-approve" href="{{ url_for('main.index') }}">Добавить приложение</a>
+                </div>
+                {% if apps %}
+                    <div class="developer-app-list">
+                        {% for app in apps %}
+                            <article class="developer-app-card">
+                                <h3>{{ app['name'] or app['app_id'] }}</h3>
+                                <p><code>{{ app['app_id'] }}</code> · Опубликованная версия: {{ app['version'] or 'не определена' }}</p>
+                                <a class="admin-btn btn-download" href="{{ url_for('developer.upload_update', app_id=app['app_id']) }}">Загрузить обновление</a>
+                                <a class="admin-btn btn-edit" href="{{ url_for('developer.edit_app', app_id=app['app_id']) }}">Редактировать</a>
+                            </article>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p>У вас пока нет приложений</p>
+                {% endif %}
+                {% if pending_submissions %}
+                    <h2>На модерации</h2>
+                    <ul class="developer-claim-list">
+                        {% for submission in pending_submissions %}
+                            <li>
+                                {{ submission['name'] }} (<code>{{ submission['app_id'] }}</code>)
+                                — {% if submission['submission_type'] == 'update' %}обновление {{ submission['package_version'] or '' }}{% else %}новое приложение{% endif %}
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% endif %}
+            </section>
+        </section>
+
+        <section class="pivot-panel" id="developer-claims-panel" role="tabpanel" aria-labelledby="developer-claims-tab" hidden>
+            <section class="developer-section">
+                <h2>Запрос на подтверждение авторства</h2>
+                <p class="site-description">скоро...</p>
+                <!--<p class="site-description">Укажите App ID приложения из каталога и ссылки или другие доказательства авторства. Запрос проверит модератор.</p>
+                <form method="post" action="{{ url_for('developer.submit_claim') }}" class="developer-form">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <label for="claim-app-id">App ID</label>
+                    <input id="claim-app-id" name="app_id" maxlength="128" required>
+                    <label for="claim-proof">Доказательства (ссылки на официальный сайт, GitHub и т. п.)</label>
+                    <textarea id="claim-proof" name="proof" rows="5" minlength="20" maxlength="4000" required></textarea>
+                    <button type="submit">Отправить запрос</button>
+                </form> 
+                {% if claims %}
+                    <h3>Мои запросы</h3>
+                    <ul class="developer-claim-list">
+                        {% for claim in claims %}
+                            <li><code>{{ claim['app_id'] }}</code> — {{ {'pending': 'На проверке', 'approved': 'Подтверждён', 'rejected': 'Отклонён'}.get(claim['status'], claim['status']) }}</li>
+                        {% endfor %}
+                    </ul>
+                {% endif %}-->
+            </section>
+        </section>
+    </main>
+
+    <footer>
+        <div class="footer-bottom">
+            <p data-i18n="copyright">© kameton.dev</p>
+            <div class="language-switcher">
+                <label for="language-select" data-i18n="languageLabel">Язык</label>
+                <select id="language-select" aria-label="Язык" data-i18n-aria-label="languageLabel">
+                    <option value="ru" data-i18n="russian">Русский</option>
+                    <option value="en" data-i18n="english">English</option>
+                </select>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        document.querySelectorAll('[data-pivot-target]').forEach(function(tab) {
+            tab.addEventListener('click', function() {
+                var tabs = tab.closest('[role="tablist"]').querySelectorAll('[data-pivot-target]');
+                tabs.forEach(function(item) {
+                    var isActive = item === tab;
+                    item.classList.toggle('active', isActive);
+                    item.setAttribute('aria-selected', String(isActive));
+                    item.tabIndex = isActive ? 0 : -1;
+                    document.getElementById(item.dataset.pivotTarget).hidden = !isActive;
+                });
+            });
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="ru" data-i18n-page="submit">
+<head>
+    <meta charset="UTF-8">
+    <title data-i18n="pageTitle">Добавление приложения — MEmarket</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="{{ url_for('static', filename='js/i18n.js') }}" defer data-locale-url="{{ url_for('main.locale_file', locale='ru') }}"></script>
+</head>
+<body>
+
+<header>
+    <div class="header-top">
+        <div class="logo-area">
+            <div class="logo-text" onclick="location.href='../'">Millennium Market</div>
+            <!-- <img class="submit-arrow" src="{{ url_for('static', filename='arrow.svg') }}" alt=""> -->
+            <div class="submit-label">Submit</div>
+        </div>
+    </div>
+</header>
+
+<main class="submit-page">
+    <h1 class="submit-heading" data-i18n="pageHeading">Добавление приложения в репозиторий MEmarket-Basic</h1>
+    <p class="site-description">
+        <span data-i18n="intro">Этот сайт отправляет форму на добавление приложения в основной репозиторий MEmarket-Basic. Он не помогает создать и не создает отдельный репозиторий.</span><br>
+        <span data-i18n="docsIntro">Для создания собственного репозитория ознакомьтесь с</span> <a href="https://millenniummarket.online/docs/#about-memarketrepo" target="_blank" rel="noopener noreferrer" data-i18n="docsLink">документацией memarketrepo</a>.
+    </p>
+    
+    <!-- 1. ЗАГРУЗКА И ПАРСИНГ ФАЙЛА НА САМОМ ВЕРХУ -->
+    <div class="form-group">
+        <label class="form-label" data-i18n="packageLabel">Загрузите пакет приложения (.xap / .appx)</label>
+        <div class="file-upload-box" onclick="document.getElementById('app_file').click()">
+            <img class="upload-icon" src="{{ url_for('static', filename='upload_file.svg') }}" alt="">
+            <span id="upload-status" data-i18n="chooseFile">Нажмите для выбора файла</span>
+            <input type="file" id="app_file" accept=".xap,.appx,.appxbundle" style="display: none;" onchange="handleFileSelect(this)">
+        </div>
+        <div id="loader" class="loader"></div>
+        <div id="error-box" class="error-msg"></div>
+    </div>
+
+    <!-- 2. СКРЫТЫЕ ПОЛЯ, КОТОРЫЕ ОТКРЫВАЮТСЯ ПОСЛЕ УСПЕШНОГО ПАРСИНГА -->
+    <form id="meta-form" onsubmit="submitForm(event)">
+        {% if session.get('developer_id') %}
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        {% endif %}
+        <!-- Скрытые технические данные -->
+        <input type="hidden" name="app_id" id="parsed_app_id">
+        <input type="hidden" name="temp_file_name" id="temp_file_name">
+        <input type="hidden" name="manifest_info" id="manifest_info">
+
+        <div id="extra-fields" class="hidden-fields">
+            <section class="manifest-panel" aria-live="polite">
+                <h2 data-i18n="manifestTitle">Информация из манифеста</h2>
+                <p class="manifest-note" data-i18n="manifestNote">Эти данные получены из пакета и доступны только для просмотра.</p>
+                <dl id="manifest-details" class="manifest-details"></dl>
+            </section>
+            
+            <p class="site-description">
+                <span data-i18n="requiredFields">* - обязательное поле</span>
+            </p>
+
+            <section class="form-card submission-fields">
+                <div class="form-group">
+                    <label for="banner_file" data-i18n="bannerLabel">Баннер приложения</label>
+                    <div class="media-upload" id="banner-upload">
+                        <label class="file-upload-box media-upload-box" for="banner_file">
+                            <img class="upload-icon" src="{{ url_for('static', filename='upload_image.svg') }}" alt="">
+                            <span data-i18n="uploadBanner">Нажмите, чтобы загрузить баннер</span>
+                        </label>
+                        <input class="media-file-input" type="file" id="banner_file" name="banner_file" accept=".png,.jpg,.jpeg,.webp">
+                        <div id="banner-preview-container" class="media-preview media-upload-preview" hidden>
+                            <img id="banner-preview" src="" alt="Предпросмотр баннера" data-i18n-alt="bannerPreview">
+                            <button type="button" class="media-change-btn" data-input="banner_file" data-i18n="changeBanner">Заменить баннер</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="name" data-i18n="appName">Название приложения *</label>
+                    <input type="text" id="name" name="name" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="icon_file" data-i18n="iconLabel">Иконка приложения *</label>
+                    <div class="media-upload" id="icon-upload">
+                        <label class="file-upload-box media-upload-box" for="icon_file">
+                            <img class="upload-icon" src="{{ url_for('static', filename='upload_image.svg') }}" alt="">
+                            <span data-i18n="uploadIcon">Нажмите, чтобы загрузить иконку</span>
+                        </label>
+                        <input class="media-file-input" type="file" id="icon_file" name="icon_file" accept=".png">
+                        <div id="icon-preview-container" class="media-preview media-upload-preview" hidden>
+                            <img id="icon-preview" src="" alt="Предпросмотр иконки" data-i18n-alt="iconPreview">
+                            <button type="button" class="media-change-btn" data-input="icon_file" data-i18n="changeIcon">Заменить иконку</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label data-i18n="screenshots">Скриншоты</label>
+                    <div id="screenshots-list" class="screenshots-list"></div>
+                    <p class="file-hint" data-i18n="screenshotsNote">Загруженные скриншоты будут сохранены в папке screenshots/.</p>
+                </div>
+
+                <div class="form-group">
+                    <label for="developer" data-i18n="developerLabel">Разработчик *</label>
+                    <input type="text" id="developer" name="developer" placeholder="Например: Microsoft Corporation" data-i18n-placeholder="developerPlaceholder" value="{{ session.get('publisher_name', '') }}" {% if session.get('developer_id') %}readonly{% endif %} required>
+                </div>
+
+                <div class="form-group">
+                    <label for="category" data-i18n="categoryLabel">Категория: *</label>
+                    <select id="category" name="category" required>
+                        <option value="games" data-i18n="categoryGames">Игры</option>
+                        <option value="store" data-i18n="categoryStore">Магазины приложений</option>
+                        <option value="entertainment" data-i18n="categoryEntertainment">Развлечения</option>
+                        <option value="music+video" data-i18n="categoryMusicVideo">Музыка + видео</option>
+                        <option value="tools" data-i18n="categoryTools">Инструменты</option>
+                        <option value="livestyle" data-i18n="categoryLifestyle">Лайфстайл</option>
+                        <option value="news+weather" data-i18n="categoryNewsWeather">Новости + погода</option>
+                        <option value="photo" data-i18n="categoryPhoto">Фото</option>
+                        <option value="social" data-i18n="categorySocial">Социальные сети</option>
+                        <option value="sports" data-i18n="categorySports">Спорт</option>
+                        <option value="business" data-i18n="categoryBusiness">Бизнес</option>
+                        <option value="education" data-i18n="categoryEducation">Обучение</option>
+                        <option value="other" data-i18n="categoryOther">Другое</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label data-i18n="summaryLabel">Краткое описание *</label>
+                    <div class="toggle-group">
+                        <button type="button" class="toggle-btn active" onclick="setSummaryType('static')" data-i18n="singleLanguage">Одноязычное</button>
+                        <button type="button" class="toggle-btn" onclick="setSummaryType('multilingual')" data-i18n="multilingual">Мультиязычное (RU + EN)</button>
+                    </div>
+                    <input type="hidden" name="summary_type" id="summary_type" value="static">
+                    <div id="summary-static-box">
+                        <input type="text" name="summary_static" placeholder="Коротко о приложении..." data-i18n-placeholder="summaryPlaceholder">
+                    </div>
+                    <div id="summary-multi-box" style="display: none;">
+                        <input type="text" name="summary_ru" placeholder="Описание на русском..." data-i18n-placeholder="summaryRuPlaceholder" style="margin-bottom: 8px;">
+                        <input type="text" name="summary_en" placeholder="Description in English..." data-i18n-placeholder="summaryEnPlaceholder">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label data-i18n="descriptionLabel">Полное описание приложения</label>
+                    <div class="toggle-group">
+                        <button type="button" class="toggle-btn active" onclick="setDescType('static')" data-i18n="singleLanguage">Одноязычное</button>
+                        <button type="button" class="toggle-btn" onclick="setDescType('multilingual')" data-i18n="multilingual">Мультиязычное (RU + EN)</button>
+                    </div>
+                    <input type="hidden" name="desc_type" id="desc_type" value="static">
+                    <div id="desc-static-box">
+                        <textarea name="desc_static" rows="6" placeholder="Полное описание приложения..." data-i18n-placeholder="fullDescription"></textarea>
+                    </div>
+                    <div id="desc-multi-box" style="display: none;">
+                        <textarea name="desc_ru" rows="5" placeholder="Описание на русском..." data-i18n-placeholder="descriptionRuPlaceholder" style="margin-bottom: 8px;"></textarea>
+                        <textarea name="desc_en" rows="5" placeholder="Description in English..." data-i18n-placeholder="descriptionEnPlaceholder"></textarea>
+                    </div>
+                    <button type="button" id="markdown-preview-toggle" class="toggle-btn markdown-preview-toggle" aria-expanded="false" data-i18n="markdownPreview">Предпросмотр Markdown</button>
+                    <div id="markdown-preview" class="markdown-preview" hidden aria-live="polite"></div>
+                </div>
+
+                <button type="submit" data-i18n="submit">Отправить на модерацию</button>
+            </section>
+        </div>
+    </form>
+</main>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const screenshotsList = document.getElementById('screenshots-list');
+        const maxScreenshots = 5;
+
+        function showPreview(input, container, image) {
+            if (image.dataset.objectUrl) {
+                URL.revokeObjectURL(image.dataset.objectUrl);
+                delete image.dataset.objectUrl;
+            }
+            if (input.files && input.files[0]) {
+                const objectUrl = URL.createObjectURL(input.files[0]);
+                image.src = objectUrl;
+                image.dataset.objectUrl = objectUrl;
+                container.hidden = false;
+            } else {
+                image.removeAttribute('src');
+                container.hidden = true;
+            }
+        }
+
+        function createScreenshotSlot(slotNumber) {
+            const slot = document.createElement('div');
+            slot.className = 'screenshot-slot';
+            slot.innerHTML = `
+                <label class="file-upload-box media-upload-box screenshot-upload-box" for="screenshot-${slotNumber}">
+                    <img class="upload-icon" src="{{ url_for('static', filename='upload_image.svg') }}" alt="">
+                    <span data-i18n="uploadScreenshot" data-i18n-number="${slotNumber}">Загрузить скриншот ${slotNumber}</span>
+                </label>
+                <input class="media-file-input screenshot-file-input" type="file" id="screenshot-${slotNumber}" name="screenshots" accept=".png,.jpg,.jpeg,.webp">
+                <div class="media-preview media-upload-preview screenshot-preview" hidden>
+                    <img alt="${translate('screenshotPreview', { number: slotNumber })}" data-i18n-alt="screenshotPreview">
+                    <button type="button" class="media-change-btn" data-input="screenshot-${slotNumber}" data-i18n="changeScreenshot">Заменить скриншот</button>
+                </div>
+            `;
+            screenshotsList.appendChild(slot);
+            slot.querySelector('[data-i18n-alt="screenshotPreview"]').dataset.i18nNumber = slotNumber;
+            applyTranslations();
+        }
+
+        for (let slotNumber = 1; slotNumber <= maxScreenshots; slotNumber += 1) {
+            createScreenshotSlot(slotNumber);
+        }
+
+        document.querySelectorAll('.media-file-input').forEach(function(input) {
+            input.addEventListener('change', function() {
+                const upload = this.closest('.media-upload, .screenshot-slot');
+                const preview = upload.querySelector('.media-upload-preview');
+                const uploadBox = upload.querySelector('.media-upload-box');
+                const image = preview.querySelector('img');
+                showPreview(this, preview, image);
+                uploadBox.hidden = Boolean(this.files && this.files[0]);
+            });
+        });
+
+        document.querySelectorAll('.media-change-btn').forEach(function(button) {
+            button.addEventListener('click', function() {
+                document.getElementById(this.dataset.input).click();
+            });
+        });
+
+        const markdownPreview = document.getElementById('markdown-preview');
+        const markdownToggle = document.getElementById('markdown-preview-toggle');
+        markdownToggle.addEventListener('click', function() {
+            markdownPreview.hidden = !markdownPreview.hidden;
+            this.setAttribute('aria-expanded', String(!markdownPreview.hidden));
+            this.textContent = markdownPreview.hidden ? translate('markdownPreview') : translate('hidePreview');
+            if (!markdownPreview.hidden) renderMarkdownPreview();
+        });
+
+        document.querySelectorAll('#desc-static-box textarea, #desc-multi-box textarea')
+            .forEach(function(textarea) {
+                textarea.addEventListener('input', function() {
+                    if (!markdownPreview.hidden) renderMarkdownPreview();
+                });
+            });
+
+        function renderMarkdownPreview() {
+            const source = document.getElementById('desc_type').value === 'static'
+                ? document.querySelector('#desc-static-box textarea').value
+                : [
+                    '## ' + translate('markdownRussian'),
+                    document.querySelector('#desc-multi-box textarea[name="desc_ru"]').value,
+                    '',
+                    '## ' + translate('markdownEnglish'),
+                    document.querySelector('#desc-multi-box textarea[name="desc_en"]').value
+                ].join('\n');
+            markdownPreview.innerHTML = renderMarkdown(source);
+        }
+
+        window.addEventListener('localechange', function() {
+            if (!markdownPreview.hidden) renderMarkdownPreview();
+        });
+    });
+
+    function renderMarkdown(markdown) {
+        function escapeHtml(text) {
+            return text.replace(/[&<>"']/g, function(character) {
+                return {
+                    '&': '&amp;',
+                    '<': '&lt;',
+                    '>': '&gt;',
+                    '"': '&quot;',
+                    "'": '&#39;'
+                }[character];
+            });
+        }
+
+        function renderInline(text) {
+            const tokens = [];
+            function saveToken(html) {
+                const token = `\u0000${tokens.length}\u0000`;
+                tokens.push(html);
+                return token;
+            }
+
+            let result = escapeHtml(text);
+            result = result.replace(/`([^`]+)`/g, function(_, code) {
+                return saveToken(`<code>${code}</code>`);
+            });
+            result = result.replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, function(_, label, href) {
+                return saveToken(`<a href="${href}" target="_blank" rel="noopener noreferrer">${label}</a>`);
+            });
+            result = result.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+            result = result.replace(/__([^_]+)__/g, '<strong>$1</strong>');
+            result = result.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+            result = result.replace(/_([^_]+)_/g, '<em>$1</em>');
+            return result.replace(/\u0000(\d+)\u0000/g, function(_, index) {
+                return tokens[Number(index)];
+            });
+        }
+
+        const lines = markdown.replace(/\r\n?/g, '\n').split('\n');
+        const output = [];
+        let paragraph = [];
+        let list = null;
+        let inCodeBlock = false;
+        let codeLines = [];
+
+        function closeParagraph() {
+            if (paragraph.length) {
+                output.push(`<p>${paragraph.map(renderInline).join('<br>')}</p>`);
+                paragraph = [];
+            }
+        }
+
+        function closeList() {
+            if (list) {
+                output.push(`</${list}>`);
+                list = null;
+            }
+        }
+
+        lines.forEach(function(line) {
+            if (/^\s*```/.test(line)) {
+                closeParagraph();
+                closeList();
+                if (inCodeBlock) {
+                    output.push(`<pre><code>${escapeHtml(codeLines.join('\n'))}</code></pre>`);
+                    codeLines = [];
+                    inCodeBlock = false;
+                } else {
+                    inCodeBlock = true;
+                }
+                return;
+            }
+            if (inCodeBlock) {
+                codeLines.push(line);
+                return;
+            }
+
+            const heading = line.match(/^(#{1,6})\s+(.+)$/);
+            const listItem = line.match(/^\s*([-*+]|\d+\.)\s+(.+)$/);
+            const quote = line.match(/^\s*>\s?(.*)$/);
+            if (heading) {
+                closeParagraph();
+                closeList();
+                const level = heading[1].length;
+                output.push(`<h${level}>${renderInline(heading[2])}</h${level}>`);
+            } else if (listItem) {
+                closeParagraph();
+                const nextList = /^\d/.test(listItem[1]) ? 'ol' : 'ul';
+                if (list && list !== nextList) closeList();
+                if (!list) {
+                    output.push(`<${nextList}>`);
+                    list = nextList;
+                }
+                output.push(`<li>${renderInline(listItem[2])}</li>`);
+            } else if (quote) {
+                closeParagraph();
+                closeList();
+                output.push(`<blockquote>${renderInline(quote[1])}</blockquote>`);
+            } else if (!line.trim()) {
+                closeParagraph();
+                closeList();
+            } else {
+                closeList();
+                paragraph.push(line);
+            }
+        });
+
+        closeParagraph();
+        closeList();
+        if (inCodeBlock) {
+            output.push(`<pre><code>${escapeHtml(codeLines.join('\n'))}</code></pre>`);
+        }
+        return output.join('') || `<p class="markdown-empty">${translate('markdownEmpty')}</p>`;
+    }
+
+    // 1. Обработка загрузки и автопарсинг файла пакета
+    async function handleFileSelect(input) {
+        if (!input.files.length) return;
+        
+        const file = input.files[0];
+        const uploadStatus = document.getElementById('upload-status');
+        uploadStatus.dataset.selectedFilename = file.name;
+        uploadStatus.innerText = translate('fileSelected', { filename: file.name });
+        document.getElementById('loader').style.display = 'block';
+        document.getElementById('error-box').style.display = 'none';
+        document.getElementById('extra-fields').style.display = 'none';
+
+        const formData = new FormData();
+        formData.append('app_file', file);
+
+        try {
+            const response = await fetch('/parse-package', {
+                method: 'POST',
+                body: formData
+            });
+            const data = await response.json();
+
+            document.getElementById('loader').style.display = 'none';
+
+            if (data.success) {
+                // Подставляем распарсенные данные
+                document.getElementById('parsed_app_id').value = data.app_id;
+                document.getElementById('temp_file_name').value = data.temp_file_name;
+                document.getElementById('name').value = data.name;
+                document.getElementById('manifest_info').value = JSON.stringify(data.manifest_info || {});
+                renderManifestInfo(data.manifest_info || {});
+
+                // Показываем остальную часть формы
+                document.getElementById('extra-fields').style.display = 'block';
+            } else {
+                if (data.error) {
+                    showError(data.error);
+                } else {
+                    showError('', 'unknownParseError');
+                }
+            }
+        } catch (err) {
+            document.getElementById('loader').style.display = 'none';
+            showError('', 'parseConnectionError');
+        }
+    }
+
+    function showError(text, translationKey) {
+        const errorBox = document.getElementById('error-box');
+        if (translationKey) {
+            delete errorBox.dataset.i18nMessage;
+            errorBox.dataset.i18n = translationKey;
+            errorBox.innerText = translate(translationKey);
+        } else {
+            delete errorBox.dataset.i18n;
+            errorBox.dataset.i18nMessage = text;
+            errorBox.innerText = translateMessage(text);
+        }
+        errorBox.style.display = 'block';
+    }
+
+    function renderManifestInfo(info) {
+        const details = document.getElementById('manifest-details');
+        details.innerHTML = '';
+        Object.entries(info).forEach(([key, value]) => {
+            const term = document.createElement('dt');
+            const description = document.createElement('dd');
+            term.textContent = key.replaceAll('_', ' ');
+            description.textContent = typeof value === 'object' ? JSON.stringify(value) : String(value);
+            details.append(term, description);
+        });
+    }
+
+    // 2. Логика переключения языков для Summary (Краткое описание)
+    function setSummaryType(type) {
+        document.getElementById('summary_type').value = type;
+        const btns = document.querySelectorAll('[onclick^="setSummaryType"]');
+        btns.forEach(btn => btn.classList.remove('active'));
+        
+        if (type === 'static') {
+            btns[0].classList.add('active');
+            document.getElementById('summary-static-box').style.display = 'block';
+            document.getElementById('summary-multi-box').style.display = 'none';
+        } else {
+            btns[1].classList.add('active');
+            document.getElementById('summary-static-box').style.display = 'none';
+            document.getElementById('summary-multi-box').style.display = 'block';
+        }
+    }
+
+    // 3. Логика переключения языков для Description (Полное описание)
+    function setDescType(type) {
+        document.getElementById('desc_type').value = type;
+        const btns = document.querySelectorAll('[onclick^="setDescType"]');
+        btns.forEach(btn => btn.classList.remove('active'));
+
+        if (type === 'static') {
+            btns[0].classList.add('active');
+            document.getElementById('desc-static-box').style.display = 'block';
+            document.getElementById('desc-multi-box').style.display = 'none';
+        } else {
+            btns[1].classList.add('active');
+            document.getElementById('desc-static-box').style.display = 'none';
+            document.getElementById('desc-multi-box').style.display = 'block';
+        }
+        const markdownPreview = document.getElementById('markdown-preview');
+        if (!markdownPreview.hidden) {
+            const source = type === 'static'
+                ? document.querySelector('#desc-static-box textarea').value
+                : [
+                    '## ' + translate('markdownRussian'),
+                    document.querySelector('#desc-multi-box textarea[name="desc_ru"]').value,
+                    '',
+                    '## ' + translate('markdownEnglish'),
+                    document.querySelector('#desc-multi-box textarea[name="desc_en"]').value
+                ].join('\n');
+            markdownPreview.innerHTML = renderMarkdown(source);
+        }
+    }
+
+    // 4. Отправка всей готовой формы
+    async function submitForm(event) {
+        event.preventDefault();
+        const form = document.getElementById('meta-form');
+        const formData = new FormData(form);
+
+        const iconInput = document.getElementById('icon_file');
+        if (!iconInput.files.length) {
+            alert(translate('iconRequired'));
+            return;
+        }
+
+        try {
+            const response = await fetch('/upload', {
+                method: 'POST',
+                body: formData
+            });
+            const result = await response.json();
+
+            if (result.status === 'success') {
+                alert(translate('uploadSuccess'));
+                location.reload();
+            } else {
+                alert(translate('uploadError') + translateMessage(result.error));
+            }
+        } catch (err) {
+            alert(translate('submitError'));
+        }
+    }
+</script>
+
+<footer>
+        <div class="footer-container">
+            <div class="footer-col">
+                <h3 data-i18n="developerLinks">Разработчикам</h3>
+                <ul>
+                    {% if session.get('developer_id') %}
+                        <li><a href="{{ url_for('developer.dashboard') }}" data-i18n="developerCabinet" data-i18n-publisher="{{ session.get('publisher_name', 'разработчика') }}">Кабинет {{ session.get('publisher_name', 'разработчика') }}</a></li>
+                    {% else %}
+                        <li><a href="{{ url_for('developer.login') }}" data-i18n="login">Вход</a></li>
+                        <li><a href="{{ url_for('developer.register') }}" data-i18n="register">Регистрация</a></li>
+                    {% endif %}
+                </ul>
+            </div>
+            <div class="footer-col">
+                <h3 data-i18n="moderators">Модераторам</h3>
+                <ul>
+                    <li><a href="#" data-i18n="comingSoon">скоро...</a></li>
+                    <!-- <li><a href="{{ url_for('admin.admin_panel') }}">Войти в панель модератора</a></li> -->
+                </ul>
+            </div>
+            <div class="footer-col">
+                <h3 data-i18n="more">дополнительно</h3>
+                <ul>
+                    <li><a href="https://millenniummarket.online" target="_blank" data-i18n="projectHome">Домашняя страница проекта</a></li>
+                    <li><a href="https://t.me/SimpSoftware" target="_blank" data-i18n="telegram">Следите за обновлениями в ТГК!</a></li>
+                    <li><a href="https://github.com/kameton-dev/MEmarket-Basic" target="_blank" data-i18n="repository">GitHub репозитория MEmarket-Basic</a></li>
+                    <li><a href="https://pay.cloudtips.ru/p/c663e254" target="_blank" data-i18n="support">На покушать :D</a></li>
+                </ul>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <p data-i18n="copyright">© kameton.dev. 300м от вас.</p>
+            <div class="language-switcher">
+                <label for="language-select" data-i18n="languageLabel">Язык</label>
+                <select id="language-select" aria-label="Язык" data-i18n-aria-label="languageLabel">
+                    <option value="ru" data-i18n="russian">Русский</option>
+                    <option value="en" data-i18n="english">English</option>
+                </select>
+            </div>
+            <!--<p style="font-size: 11px; text-transform: uppercase;">привет я цыган и мне 32</p>-->
+        </div>
+    </footer>
+
+</body>
+</html>

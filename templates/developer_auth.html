@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="ru" data-i18n-page="developerAuth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title data-i18n="{% if mode == 'register' %}registerTitle{% else %}loginTitle{% endif %}">{% if mode == 'register' %}Регистрация{% else %}Вход{% endif %} разработчика — MEmarket</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="{{ url_for('static', filename='js/i18n.js') }}" defer data-locale-url="{{ url_for('main.locale_file', locale='ru') }}"></script>
+</head>
+<body>
+    <header>
+        <div class="header-top">
+            <div class="logo-area">
+                <div class="logo-text">Millennium Market</div>
+                <div class="submit-label">Submit</div>
+                <img class="submit-arrow" src="{{ url_for('static', filename='arrow.svg') }}" alt="">
+                <div class="submit-label">Разработчикам</div>
+            </div>
+        </div>
+    </header>
+    <main class="submit-page developer-auth-page">
+        <h1 class="submit-heading">{% if mode == 'register' %}Регистрация{% else %}Вход{% endif %}</h1>
+        {% for category, message in get_flashed_messages(with_categories=true) %}
+            <p class="developer-notice {{ category }}">{{ message }}</p>
+        {% endfor %}
+        <form method="post" class="developer-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            {% if mode == 'register' %}
+                <label for="publisher_name">Имя издателя *</label>
+                <input id="publisher_name" name="publisher_name" type="text" maxlength="80" required>
+            {% endif %}
+            <label for="email">Email</label>
+            <input id="email" name="email" type="email" maxlength="254" autocomplete="email" required>
+            <label for="password">Пароль</label>
+            <input id="password" name="password" type="password" minlength="12" autocomplete="{% if mode == 'register' %}new-password{% else %}current-password{% endif %}" required>
+            {% if mode == 'register' %}
+                <p class="file-hint">Минимум 12 символов</p>
+            {% endif %}
+            <button type="submit">{% if mode == 'register' %}Создать аккаунт{% else %}Войти{% endif %}</button>
+        </form>
+        <p class="site-description">
+            {% if mode == 'register' %}
+                Уже есть аккаунт? <a href="{{ url_for('developer.login') }}">Войти</a>
+            {% else %}
+                Нет аккаунта? <a href="{{ url_for('developer.register') }}">Зарегистрироваться</a>
+            {% endif %}
+        </p>
+    </main>
+
+    <footer>
+        <div class="footer-bottom">
+            <p data-i18n="copyright">© kameton.dev</p>
+            <div class="language-switcher">
+                <label for="language-select" data-i18n="languageLabel">Язык</label>
+                <select id="language-select" aria-label="Язык" data-i18n-aria-label="languageLabel">
+                    <option value="ru" data-i18n="russian">Русский</option>
+                    <option value="en" data-i18n="english">English</option>
+                </select>
+            </div>
+        </div>
+    </footer>
+</body>
+</html>

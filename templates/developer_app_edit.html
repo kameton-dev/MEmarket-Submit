@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="ru" data-i18n-page="developerEdit">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title data-i18n="pageTitle">Редактирование приложения — MEmarket</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="{{ url_for('static', filename='js/i18n.js') }}" defer data-locale-url="{{ url_for('main.locale_file', locale='ru') }}"></script>
+</head>
+<body>
+    <header>
+        <div class="header-top">
+            <div class="logo-area">
+                <div class="logo-text">Millennium Market</div>
+                <div class="submit-label">Submit</div>
+                <img class="submit-arrow" src="{{ url_for('static', filename='arrow.svg') }}" alt="">
+                <div class="submit-label">Разработчикам</div>
+            </div>
+        </div>
+    </header>
+
+    <main class="admin-page edit-page">
+        <p class="site-description"><a href="{{ url_for('developer.dashboard') }}">Назад</a></p>
+        <h1 class="submit-heading">Редактирование приложения</h1>
+        <p class="site-description">
+            Измените данные карточки приложения. После сохранения изменения вступят в силу без модерации.
+        </p>
+        {% for category, message in get_flashed_messages(with_categories=true) %}
+            <p class="developer-notice {{ category }}">{{ message }}</p>
+        {% endfor %}
+
+        <form method="post" class="edit-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="form-card">
+                <label for="name">Название приложения:</label>
+                <input type="text" id="name" name="name" maxlength="200" value="{{ form_data['name'] }}" required>
+            </div>
+            <div class="form-card">
+                <label for="developer">Разработчик:</label>
+                <input type="text" id="developer" name="developer" maxlength="200" value="{{ form_data['developer'] }}" required>
+            </div>
+            <div class="form-card">
+                <label for="category">Категория:</label>
+                <select id="category" name="category" required>
+                    {% for value, label in categories %}
+                        <option value="{{ value }}" {% if form_data['category'] == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-card">
+                <label for="summary_type">Тип краткого описания:</label>
+                <select id="summary_type" name="summary_type">
+                    <option value="static" {% if form_data['summary_type'] == 'static' %}selected{% endif %}>Одноязычное</option>
+                    <option value="multilingual" {% if form_data['summary_type'] == 'multilingual' %}selected{% endif %}>Мультиязычное</option>
+                </select>
+                <input type="text" name="summary_static" maxlength="500" value="{{ form_data['summary_static'] }}" placeholder="Одноязычное описание" class="edit-input-gap">
+                <input type="text" name="summary_ru" maxlength="500" value="{{ form_data['summary_ru'] }}" placeholder="Описание на русском" class="edit-input-gap">
+                <input type="text" name="summary_en" maxlength="500" value="{{ form_data['summary_en'] }}" placeholder="Description in English" class="edit-input-gap">
+            </div>
+            <div class="form-card">
+                <label for="desc_type">Тип полного описания:</label>
+                <select id="desc_type" name="desc_type">
+                    <option value="static" {% if form_data['desc_type'] == 'static' %}selected{% endif %}>Одноязычное</option>
+                    <option value="multilingual" {% if form_data['desc_type'] == 'multilingual' %}selected{% endif %}>Мультиязычное</option>
+                </select>
+                <textarea name="desc_static" rows="6" maxlength="20000" placeholder="Полное описание">{{ form_data['desc_static'] }}</textarea>
+                <textarea name="desc_ru" rows="5" maxlength="20000" placeholder="Описание на русском" class="edit-input-gap">{{ form_data['desc_ru'] }}</textarea>
+                <textarea name="desc_en" rows="5" maxlength="20000" placeholder="Description in English" class="edit-input-gap">{{ form_data['desc_en'] }}</textarea>
+            </div>
+            <div class="edit-actions">
+                <button type="submit" class="admin-btn btn-approve">Сохранить</button>
+                <a href="{{ url_for('developer.dashboard') }}" class="admin-btn btn-reject">Отмена</a>
+            </div>
+        </form>
+    </main>
+
+    <footer>
+        <div class="footer-bottom">
+            <p data-i18n="copyright">© kameton.dev</p>
+            <div class="language-switcher">
+                <label for="language-select" data-i18n="languageLabel">Язык</label>
+                <select id="language-select" aria-label="Язык" data-i18n-aria-label="languageLabel">
+                    <option value="ru" data-i18n="russian">Русский</option>
+                    <option value="en" data-i18n="english">English</option>
+                </select>
+            </div>
+        </div>
+    </footer>
+</body>
+</html>
