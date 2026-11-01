@@ -24,7 +24,7 @@ MANIFEST
 venv/
 env/
 ENV/
-.md
+README.md
 .env
 .python-version
 .pdm-python
