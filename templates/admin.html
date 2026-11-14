@@ -24,7 +24,10 @@
         <nav class="pivot-header" role="tablist" aria-label="Разделы панели модерации">
             <button type="button" class="pivot-item active" id="admin-apps-tab" role="tab" aria-selected="true" aria-controls="admin-apps-panel" data-pivot-target="admin-apps-panel">приложения</button>
             <button type="button" class="pivot-item" id="admin-accounts-tab" role="tab" aria-selected="false" aria-controls="admin-accounts-panel" data-pivot-target="admin-accounts-panel" tabindex="-1">аккаунты</button>
+            <button type="button" class="pivot-item" id="admin-requests-tab" role="tab" aria-selected="false" aria-controls="admin-requests-panel" data-pivot-target="admin-requests-panel" tabindex="-1">заявки{% if pending_moderators %} ({{ pending_moderators|length }}){% endif %}</button>
         </nav>
+        {% if invitation_url %}<p class="developer-notice success">Одноразовая ссылка (действует 7 дней): <a href="{{ invitation_url }}">{{ invitation_url }}</a></p>{% endif %}
+        {% for category, message in get_flashed_messages(with_categories=true) %}<p class="developer-notice {{ category }}">{{ message }}</p>{% endfor %}
 
         <section class="pivot-panel" id="admin-apps-panel" role="tabpanel" aria-labelledby="admin-apps-tab">
             {% if submissions %}
@@ -47,7 +50,7 @@
                                         {% if sub[5] %}
                                             <img src="{{ url_for('admin.serve_pending_files', filepath=(sub[7] or sub[1]) ~ '/' ~ sub[5]) }}" alt="Иконка приложения" style="width: 48px; height: 48px; background: #141414; object-fit: contain;">
                                         {% else %}
-                                            <span>—</span>
+                                            <span>-</span>
                                         {% endif %}
                                     </a>
                                 </td>
@@ -81,7 +84,7 @@
                 {% if claims %}
                     {% for claim in claims %}
                         <article class="developer-app-card">
-                            <h3>{{ claim['app_id'] }} — {{ claim['publisher_name'] }}</h3>
+                            <h3>{{ claim['app_id'] }} - {{ claim['publisher_name'] }}</h3>
                             <p>{{ claim['email'] }}</p>
                             {% if claim['current_owner'] %}
                                 <p>Текущий владелец: {{ claim['current_owner'] }}</p>
@@ -104,6 +107,22 @@
         </section>
 
         <section class="pivot-panel" id="admin-accounts-panel" role="tabpanel" aria-labelledby="admin-accounts-tab" hidden>
+            <section class="developer-section">
+                <h2>Приглашение модератора</h2>
+                <form method="post" action="{{ url_for('admin.create_moderator_invitation') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="admin-btn btn-approve">Создать одноразовую ссылку</button>
+                </form>
+            </section>
+            <section class="developer-section">
+                <h2>Аккаунты модераторов</h2>
+                {% if moderators %}<table class="admin-table"><thead><tr><th>Email</th><th>Статус</th><th>Дата регистрации</th><th>Действие</th></tr></thead><tbody>
+                {% for account in moderators %}<tr><td>{{ account['email'] }}</td><td>{{ 'Активен' if account['status'] == 'active' else 'Ожидает одобрения' }}</td><td>{{ account['created_at'] }}</td><td><form method="post" action="{{ url_for('admin.delete_moderator', moderator_id=account['id']) }}" onsubmit="return confirm(window.translateMessage('Удалить аккаунт модератора?'))"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="admin-btn btn-reject" type="submit">Удалить</button></form></td></tr>{% endfor %}
+                </tbody></table>{% else %}<p>Аккаунтов модераторов пока нет.</p>{% endif %}
+            </section>
+            <section class="developer-section"><h2>Активные приглашения</h2>
+                {% if invitations %}<ul>{% for invitation in invitations %}<li>Создано: {{ invitation['created_at'] }} · истекает: {{ invitation['expires_at'] }} (ссылка показывается только при создании)</li>{% endfor %}</ul>{% else %}<p>Активных приглашений нет.</p>{% endif %}
+            </section>
             <h2>Аккаунты разработчиков</h2>
             {% if developer_accounts %}
                 <table class="admin-table">
@@ -130,6 +149,16 @@
                 <p>Аккаунтов разработчиков пока нет.</p>
             {% endif %}
         </section>
+
+        <section class="pivot-panel" id="admin-requests-panel" role="tabpanel" aria-labelledby="admin-requests-tab" hidden>
+            <h2>Заявки на аккаунт модератора</h2>
+            {% if pending_moderators %}
+                {% for applicant in pending_moderators %}<article class="developer-app-card"><h3>{{ applicant['email'] }}</h3><p>Регистрация: {{ applicant['created_at'] }}</p>
+                    <form method="post" action="{{ url_for('admin.approve_moderator', moderator_id=applicant['id']) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="admin-btn btn-approve" type="submit">Одобрить</button></form>
+                    <form method="post" action="{{ url_for('admin.reject_moderator', moderator_id=applicant['id']) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="admin-btn btn-reject" type="submit">Отклонить</button></form>
+                </article>{% endfor %}
+            {% else %}<p>Заявок на аккаунт модератора нет.</p>{% endif %}
+        </section>
     </main>
     <script>
         document.querySelectorAll('[data-pivot-target]').forEach(function(tab) {
@@ -144,6 +173,11 @@
                 });
             });
         });
+        var initialPanel = window.location.hash.slice(1);
+        if (initialPanel) {
+            var matchingTab = document.querySelector('[data-pivot-target="' + initialPanel + '"]');
+            if (matchingTab) matchingTab.click();
+        }
     </script>
 
     <footer>

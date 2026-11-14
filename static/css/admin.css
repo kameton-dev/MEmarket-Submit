@@ -78,6 +78,43 @@ button.admin-btn {
     gap: 8px;
 }
 
+.edit-page > .submit-heading {
+    margin-bottom: 14px;
+}
+
+.edit-icon-preview {
+    display: block;
+    width: 128px;
+    height: 128px;
+    padding: 8px;
+    background: #fff;
+    border: 1px solid var(--border-grey);
+    object-fit: contain;
+}
+
+.edit-icon-preview[hidden] {
+    display: none;
+}
+
+.edit-icon-upload {
+    max-width: 520px;
+}
+
+.edit-icon-input {
+    width: 100%;
+    max-width: 520px;
+}
+
+.edit-language-group {
+    display: grid;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.edit-language-group[hidden] {
+    display: none;
+}
+
 .edit-input-gap {
     margin-top: 8px;
 }

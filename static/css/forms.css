@@ -288,14 +288,40 @@ button[type="submit"]:hover {
     margin-top: 12px;
 }
 
+.markdown-editor-preview.preview-open {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: stretch;
+    gap: 16px;
+    margin-top: 14px;
+}
+
+.markdown-editor-preview.preview-open > * {
+    min-width: 0;
+}
+
+.markdown-editor-preview.preview-open textarea {
+    min-height: 360px;
+    height: 100%;
+    box-sizing: border-box;
+    resize: vertical;
+}
+
 .markdown-preview {
     margin-top: 14px;
+    min-height: 320px;
     padding: 20px;
     background: #fff;
     border: 1px solid var(--border-grey);
     color: #333;
     line-height: 1.65;
     overflow-wrap: anywhere;
+}
+
+.markdown-editor-preview.preview-open .markdown-preview {
+    margin-top: 0;
+    max-height: 520px;
+    overflow: auto;
 }
 
 .markdown-preview[hidden] {
@@ -348,6 +374,21 @@ button[type="submit"]:hover {
 
 .markdown-preview .markdown-empty {
     color: var(--muted-text);
+}
+
+@media (max-width: 760px) {
+    .markdown-editor-preview.preview-open {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .markdown-editor-preview.preview-open textarea {
+        min-height: 220px;
+    }
+
+    .markdown-editor-preview.preview-open .markdown-preview {
+        min-height: 180px;
+        max-height: 360px;
+    }
 }
 
 .developer-nav,

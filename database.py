@@ -56,6 +56,27 @@ def init_db():
         )
         """
     )
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS moderators (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            email TEXT NOT NULL COLLATE NOCASE UNIQUE,
+            password_hash TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'pending',
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    moderator_columns = {row[1] for row in cursor.execute("PRAGMA table_info(moderators)")}
+    if "approved_at" not in moderator_columns:
+        cursor.execute("ALTER TABLE moderators ADD COLUMN approved_at TEXT")
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS moderator_invitations (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            token_hash TEXT NOT NULL UNIQUE,
+            expires_at TEXT NOT NULL,
+            used_at TEXT,
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
     cursor.execute(
         """
         CREATE TABLE IF NOT EXISTS claim_requests (

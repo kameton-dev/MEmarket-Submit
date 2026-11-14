@@ -5,6 +5,7 @@ from flask import Flask
 from blueprints.admin import admin_bp
 from blueprints.developer import developer_bp
 from blueprints.main import main_bp
+from blueprints.moderator import moderator_bp
 from config import SECRET_KEY, SESSION_COOKIE_SECURE, TEMP_DIR
 from database import init_db
 
@@ -29,6 +30,7 @@ def create_app():
     app.register_blueprint(main_bp)
     app.register_blueprint(admin_bp)
     app.register_blueprint(developer_bp)
+    app.register_blueprint(moderator_bp)
     return app
 
 

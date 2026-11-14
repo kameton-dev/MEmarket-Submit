@@ -10,7 +10,7 @@ import zipfile
 from functools import wraps
 
 import yaml
-from flask import Blueprint, flash, redirect, render_template, request, session, url_for
+from flask import Blueprint, flash, redirect, render_template, request, send_from_directory, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
 
@@ -437,6 +437,8 @@ def edit_app(app_id):
         return "Приложение не найдено в вашем аккаунте.", 404
 
     app_dir = os.path.join(REPO_PATH, "metadata", app_id)
+    icon_path = os.path.join(app_dir, "icon.png")
+    current_icon_exists = os.path.isfile(icon_path)
     metadata_path = os.path.join(app_dir, "metadata.yaml")
     if not os.path.isfile(metadata_path):
         return "Метаданные опубликованного приложения не найдены.", 404
@@ -497,6 +499,8 @@ def edit_app(app_id):
     }
 
     if request.method == "POST":
+        icon = request.files.get("icon_file")
+        icon_data = None
         form_data.update(
             {
                 "name": request.form.get("name", "").strip(),
@@ -512,6 +516,19 @@ def edit_app(app_id):
                 "desc_en": request.form.get("desc_en", ""),
             }
         )
+        if icon and icon.filename:
+            safe_name = secure_filename(icon.filename)
+            icon_data = icon.stream.read(8 * 1024 * 1024 + 1)
+            if (
+                not safe_name.lower().endswith(".png")
+                or len(icon_data) > 8 * 1024 * 1024
+                or not icon_data.startswith(b"\x89PNG\r\n\x1a\n")
+            ):
+                flash("Иконка должна быть PNG-файлом размером не больше 8 МБ.", "error")
+                return render_template(
+                    "developer_app_edit.html", app_id=app_id, form_data=form_data,
+                    categories=_APP_CATEGORIES, current_icon_exists=current_icon_exists,
+                ), 400
         if (
             not form_data["name"]
             or len(form_data["name"]) > 200
@@ -535,6 +552,7 @@ def edit_app(app_id):
                 app_id=app_id,
                 form_data=form_data,
                 categories=_APP_CATEGORIES,
+                current_icon_exists=current_icon_exists,
             ), 400
 
         updated_metadata = {
@@ -577,6 +595,11 @@ def edit_app(app_id):
                 if os.path.exists(static_path):
                     os.remove(static_path)
 
+            if icon_data is not None:
+                with open(icon_path, "wb") as icon_file:
+                    icon_file.write(icon_data)
+                current_icon_exists = True
+
             conn = get_connection()
             try:
                 conn.execute(
@@ -614,6 +637,7 @@ def edit_app(app_id):
                 app_id=app_id,
                 form_data=form_data,
                 categories=_APP_CATEGORIES,
+                current_icon_exists=current_icon_exists,
             ), 500
 
         try:
@@ -634,7 +658,24 @@ def edit_app(app_id):
         app_id=app_id,
         form_data=form_data,
         categories=_APP_CATEGORIES,
+        current_icon_exists=current_icon_exists,
     )
+
+
+@developer_bp.route("/developer/apps/<app_id>/icon")
+@developer_required
+def app_icon(app_id):
+    if not _APP_ID_PATTERN.fullmatch(app_id):
+        return "Некорректный идентификатор приложения.", 400
+    conn = get_connection()
+    owner = conn.execute(
+        "SELECT 1 FROM developer_apps WHERE app_id=? AND developer_id=?",
+        (app_id, session["developer_id"]),
+    ).fetchone()
+    conn.close()
+    if not owner:
+        return "Приложение не найдено в вашем аккаунте.", 404
+    return send_from_directory(os.path.join(REPO_PATH, "metadata", app_id), "icon.png")
 
 
 @developer_bp.route("/developer/apps/<app_id>/update", methods=["GET", "POST"])

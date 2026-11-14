@@ -2,6 +2,7 @@
 <html lang="ru" data-i18n-page="adminEdit">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title data-i18n="pageTitle">Редактирование заявки — MEmarket</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <script src="{{ url_for('static', filename='js/i18n.js') }}" defer data-locale-url="{{ url_for('main.locale_file', locale='ru') }}"></script>
@@ -13,71 +14,113 @@
                 <div class="logo-text">Millennium Market</div>
                 <div class="submit-label">Submit</div>
                 <img class="submit-arrow" src="{{ url_for('static', filename='arrow.svg') }}" alt="">
-                <div class="submit-label">Управление</div>
+                <div class="submit-label" data-i18n="administration">Управление</div>
             </div>
         </div>
     </header>
 
-    <main class="admin-page edit-page">
-        <p class="site-description"><a href="{{ url_for('admin.admin_panel') }}">Назад</a></p>
-        <h1 class="submit-heading">Редактирование заявки</h1>
-        <p class="site-description">Пакет и иконка сохраняются. Здесь можно изменить данные карточки приложения.</p>
+    <main class="submit-page edit-page">
+        <p class="site-description"><a href="{{ url_for('admin.admin_panel') }}" data-i18n="backLink">Назад</a></p>
+        <h1 class="submit-heading" data-i18n="pageHeading">Редактирование заявки</h1>
+        {% if icon_error %}<p class="developer-notice error">{{ icon_error }}</p>{% endif %}
 
-        <form method="POST" class="edit-form">
-            <div class="form-card">
-                <label for="name">Название приложения:</label>
-                <input type="text" id="name" name="name" value="{{ submission['name'] }}" required>
-            </div>
-            <div class="form-card">
-                <label for="developer">Разработчик:</label>
-                <input type="text" id="developer" name="developer" value="{{ submission['developer'] }}" required>
-            </div>
-            <div class="form-card">
-                <label for="category">Категория:</label>
+        <form method="post" enctype="multipart/form-data" class="edit-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <section class="form-card">
+                <h2 data-i18n="iconSection">Иконка приложения</h2>
+                {% if submission['temp_icon_name'] %}
+                    <img class="edit-icon-preview" id="icon-preview" src="{{ url_for('admin.serve_pending_files', filepath=(submission['storage_key'] or submission['app_id']) ~ '/' ~ submission['temp_icon_name']) }}" alt="Текущая иконка" data-i18n-alt="currentIconAlt">
+                {% else %}
+                    <img class="edit-icon-preview" id="icon-preview" alt="" hidden>
+                {% endif %}
+                <label for="icon_file" class="file-upload-box edit-icon-upload">
+                    <img class="upload-icon" src="{{ url_for('static', filename='upload_image.svg') }}" alt="">
+                    <span data-i18n="optionalIconUpload">Загрузить новую PNG-иконку (необязательно, до 8 МБ)</span>
+                </label>
+                <input id="icon_file" name="icon_file" type="file" accept="image/png,.png" class="media-file-input edit-icon-input">
+                <p id="icon-file-name" class="file-hint" aria-live="polite"></p>
+            </section>
+
+            <section class="form-card">
+                <label for="name" data-i18n="nameLabel">Название приложения</label>
+                <input type="text" id="name" name="name" maxlength="200" value="{{ submission['name'] }}" required>
+            </section>
+            <section class="form-card">
+                <label for="developer" data-i18n="developerLabel">Разработчик</label>
+                <input type="text" id="developer" name="developer" maxlength="200" value="{{ submission['developer'] }}" required>
+            </section>
+            <section class="form-card">
+                <label for="category" data-i18n="categoryLabel">Категория</label>
                 <select id="category" name="category" required>
-                    {% for value, label in categories %}
-                        <option value="{{ value }}" {% if submission['category'] == value %}selected{% endif %}>{{ label }}</option>
-                    {% endfor %}
+                    {% for value, label in categories %}<option value="{{ value }}" data-i18n-category="{{ value }}" {% if submission['category'] == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
                 </select>
-            </div>
-            <div class="form-card">
-                <label for="summary_type">Тип краткого описания:</label>
+            </section>
+            <section class="form-card">
+                <label for="summary_type" data-i18n="summaryTypeLabel">Язык краткого описания</label>
                 <select id="summary_type" name="summary_type">
-                    <option value="static" {% if submission['summary_type'] == 'static' %}selected{% endif %}>Одноязычное</option>
-                    <option value="multilingual" {% if submission['summary_type'] == 'multilingual' %}selected{% endif %}>Мультиязычное</option>
+                    <option value="static" {% if submission['summary_type'] == 'static' %}selected{% endif %} data-i18n="singleLanguage">Одноязычное</option>
+                    <option value="multilingual" {% if submission['summary_type'] == 'multilingual' %}selected{% endif %} data-i18n="multilingual">Мультиязычное</option>
                 </select>
-                <input type="text" name="summary_static" value="{{ submission['summary_static'] or '' }}" placeholder="Одноязычное описание" class="edit-input-gap">
-                <input type="text" name="summary_ru" value="{{ submission['summary_ru'] or '' }}" placeholder="Описание на русском" class="edit-input-gap">
-                <input type="text" name="summary_en" value="{{ submission['summary_en'] or '' }}" placeholder="Description in English" class="edit-input-gap">
-            </div>
-            <div class="form-card">
-                <label for="desc_type">Тип полного описания:</label>
+                <div id="summary-static-fields" class="edit-language-group">
+                    <label for="summary_static" data-i18n="singleSummaryLabel">Краткое описание</label>
+                    <input id="summary_static" type="text" name="summary_static" maxlength="500" value="{{ submission['summary_static'] or '' }}">
+                </div>
+                <div id="summary-multilingual-fields" class="edit-language-group" hidden>
+                    <label for="summary_ru" data-i18n="summaryRuLabel">Краткое описание на русском</label>
+                    <input id="summary_ru" type="text" name="summary_ru" maxlength="500" value="{{ submission['summary_ru'] or '' }}">
+                    <label for="summary_en" data-i18n="summaryEnLabel">Краткое описание на английском</label>
+                    <input id="summary_en" type="text" name="summary_en" maxlength="500" value="{{ submission['summary_en'] or '' }}">
+                </div>
+            </section>
+            <section class="form-card">
+                <label for="desc_type" data-i18n="descriptionTypeLabel">Язык полного описания</label>
                 <select id="desc_type" name="desc_type">
-                    <option value="static" {% if submission['desc_type'] == 'static' %}selected{% endif %}>Одноязычное</option>
-                    <option value="multilingual" {% if submission['desc_type'] == 'multilingual' %}selected{% endif %}>Мультиязычное</option>
+                    <option value="static" {% if submission['desc_type'] == 'static' %}selected{% endif %} data-i18n="singleLanguage">Одноязычное</option>
+                    <option value="multilingual" {% if submission['desc_type'] == 'multilingual' %}selected{% endif %} data-i18n="multilingual">Мультиязычное</option>
                 </select>
-                <textarea name="desc_static" rows="6" placeholder="Полное описание">{{ submission['desc_static'] or '' }}</textarea>
-                <textarea name="desc_ru" rows="5" placeholder="Описание на русском" class="edit-input-gap">{{ submission['desc_ru'] or '' }}</textarea>
-                <textarea name="desc_en" rows="5" placeholder="Description in English" class="edit-input-gap">{{ submission['desc_en'] or '' }}</textarea>
-            </div>
+                <div id="description-static-fields" class="edit-language-group">
+                    <label for="desc_static" data-i18n="singleDescriptionLabel">Полное описание</label>
+                    <textarea id="desc_static" name="desc_static" rows="8" maxlength="20000">{{ submission['desc_static'] or '' }}</textarea>
+                </div>
+                <div id="description-multilingual-fields" class="edit-language-group" hidden>
+                    <label for="desc_ru" data-i18n="descriptionRuLabel">Описание на русском</label>
+                    <textarea id="desc_ru" name="desc_ru" rows="6" maxlength="20000">{{ submission['desc_ru'] or '' }}</textarea>
+                    <label for="desc_en" data-i18n="descriptionEnLabel">Описание на английском</label>
+                    <textarea id="desc_en" name="desc_en" rows="6" maxlength="20000">{{ submission['desc_en'] or '' }}</textarea>
+                </div>
+            </section>
             <div class="edit-actions">
-                <button type="submit" class="admin-btn btn-approve">Сохранить изменения</button>
-                <a href="{{ url_for('admin.admin_panel') }}" class="admin-btn btn-reject">Отмена</a>
+                <button type="submit" class="admin-btn btn-approve" data-i18n="saveChanges">Сохранить изменения</button>
+                <a href="{{ url_for('admin.admin_panel') }}" class="admin-btn btn-reject" data-i18n="cancel">Отмена</a>
             </div>
         </form>
     </main>
 
-    <footer>
-        <div class="footer-bottom">
-            <p data-i18n="copyright">© kameton.dev</p>
-            <div class="language-switcher">
-                <label for="language-select" data-i18n="languageLabel">Язык</label>
-                <select id="language-select" aria-label="Язык" data-i18n-aria-label="languageLabel">
-                    <option value="ru" data-i18n="russian">Русский</option>
-                    <option value="en" data-i18n="english">English</option>
-                </select>
-            </div>
-        </div>
-    </footer>
+    <footer><div class="footer-bottom"><p data-i18n="copyright">© kameton.dev</p><div class="language-switcher"><label for="language-select" data-i18n="languageLabel">Язык</label><select id="language-select" aria-label="Язык" data-i18n-aria-label="languageLabel"><option value="ru" data-i18n="russian">Русский</option><option value="en" data-i18n="english">English</option></select></div></div></footer>
+    <script>
+        function syncEditLanguageFields(selectId, staticId, multilingualId) {
+            const multilingual = document.getElementById(selectId).value === 'multilingual';
+            document.getElementById(staticId).hidden = multilingual;
+            document.getElementById(multilingualId).hidden = !multilingual;
+        }
+        document.getElementById('summary_type').addEventListener('change', function() {
+            syncEditLanguageFields('summary_type', 'summary-static-fields', 'summary-multilingual-fields');
+        });
+        document.getElementById('desc_type').addEventListener('change', function() {
+            syncEditLanguageFields('desc_type', 'description-static-fields', 'description-multilingual-fields');
+        });
+        syncEditLanguageFields('summary_type', 'summary-static-fields', 'summary-multilingual-fields');
+        syncEditLanguageFields('desc_type', 'description-static-fields', 'description-multilingual-fields');
+        document.getElementById('icon_file').addEventListener('change', function() {
+            const file = this.files && this.files[0];
+            if (!file) return;
+            const preview = document.getElementById('icon-preview');
+            if (preview.dataset.objectUrl) URL.revokeObjectURL(preview.dataset.objectUrl);
+            preview.dataset.objectUrl = URL.createObjectURL(file);
+            preview.src = preview.dataset.objectUrl;
+            preview.hidden = false;
+            document.getElementById('icon-file-name').textContent = file.name;
+        });
+    </script>
 </body>
 </html>

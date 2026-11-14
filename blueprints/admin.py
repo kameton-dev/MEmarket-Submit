@@ -1,6 +1,8 @@
 import json
+import hashlib
 import os
 import re
+import secrets
 import shutil
 import sqlite3
 import subprocess
@@ -9,10 +11,12 @@ import zipfile
 from functools import wraps
 
 import yaml
-from flask import Blueprint, Response, jsonify, redirect, render_template, request, send_from_directory, url_for
+from flask import Blueprint, Response, flash, jsonify, redirect, render_template, request, send_from_directory, session, url_for
+from werkzeug.utils import secure_filename
 
 from config import ADMIN_PASSWORD, ADMIN_USER, PENDING_DIR, REPO_PATH
 from database import get_connection
+from security import valid_csrf_token
 from versioning import (
     find_published_package,
     prune_published_packages,
@@ -60,6 +64,36 @@ def requires_auth(view):
     return decorated
 
 
+def requires_moderation_access(view):
+    """Allow the admin or an approved moderator to handle app submissions."""
+    @wraps(view)
+    def decorated(*args, **kwargs):
+        auth = request.authorization
+        if ADMIN_USER and ADMIN_PASSWORD and auth and auth.username == ADMIN_USER and auth.password == ADMIN_PASSWORD:
+            return view(*args, **kwargs)
+        moderator_id = session.get("moderator_id")
+        if not moderator_id:
+            return redirect(url_for("moderator.login"))
+        conn = get_connection()
+        active = conn.execute(
+            "SELECT 1 FROM moderators WHERE id = ? AND status = 'active'", (moderator_id,)
+        ).fetchone()
+        conn.close()
+        if not active:
+            session.pop("moderator_id", None)
+            return redirect(url_for("moderator.login"))
+        if request.method == "POST" and not valid_csrf_token(request.form.get("csrf_token")):
+            return "Form expired. Refresh the page and try again.", 400
+        return view(*args, **kwargs)
+    return decorated
+
+
+def moderation_redirect():
+    if session.get("moderator_id"):
+        return redirect(url_for("moderator.dashboard"))
+    return redirect(url_for("admin.admin_panel"))
+
+
 @admin_bp.route("/admin")
 @requires_auth
 def admin_panel():
@@ -95,17 +129,120 @@ def admin_panel():
         ORDER BY developers.created_at DESC
         """
     ).fetchall()
+    moderators = conn.execute(
+        "SELECT id, email, status, created_at FROM moderators ORDER BY created_at DESC"
+    ).fetchall()
+    pending_moderators = conn.execute(
+        "SELECT id, email, created_at FROM moderators WHERE status = 'pending' ORDER BY created_at"
+    ).fetchall()
+    invitations = conn.execute(
+        "SELECT id, expires_at, created_at FROM moderator_invitations "
+        "WHERE used_at IS NULL AND expires_at > CURRENT_TIMESTAMP ORDER BY created_at DESC"
+    ).fetchall()
     conn.close()
     return render_template(
         "admin.html",
         submissions=submissions,
         claims=claims,
         developer_accounts=developer_accounts,
+        moderators=moderators,
+        pending_moderators=pending_moderators,
+        invitations=invitations,
     )
 
 
-@admin_bp.route("/admin/preview/<int:sub_id>")
+@admin_bp.route("/admin/moderators/invitations", methods=["POST"])
 @requires_auth
+def create_moderator_invitation():
+    if not valid_csrf_token(request.form.get("csrf_token")):
+        return "Form expired. Refresh the page and try again.", 400
+    token = secrets.token_urlsafe(32)
+    token_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()
+    conn = get_connection()
+    conn.execute(
+        "INSERT INTO moderator_invitations (token_hash, expires_at) "
+        "VALUES (?, datetime('now', '+7 days'))",
+        (token_hash,),
+    )
+    conn.commit()
+    conn.close()
+    invitation_url = url_for("moderator.register", token=token, _external=True)
+    return render_template("admin.html", invitation_url=invitation_url, **_admin_page_context())
+
+
+def _admin_page_context():
+    """Build the account and queue data needed after creating an invitation."""
+    conn = get_connection()
+    conn.row_factory = sqlite3.Row
+    submissions = conn.execute(
+        "SELECT id, app_id, name, developer, category, temp_icon_name, temp_app_name, "
+        "storage_key, submission_type, package_version FROM submissions WHERE status = 'pending'"
+    ).fetchall()
+    claims = conn.execute(
+        "SELECT claims.id, claims.app_id, claims.proof, claims.created_at, developers.publisher_name, "
+        "developers.email, owners.publisher_name AS current_owner FROM claim_requests claims "
+        "JOIN developers ON developers.id = claims.developer_id "
+        "LEFT JOIN developer_apps apps ON apps.app_id = claims.app_id "
+        "LEFT JOIN developers owners ON owners.id = apps.developer_id WHERE claims.status = 'pending' "
+        "ORDER BY claims.created_at"
+    ).fetchall()
+    developer_accounts = conn.execute(
+        "SELECT developers.id, developers.email, developers.publisher_name, developers.created_at, "
+        "COUNT(developer_apps.app_id) AS app_count FROM developers LEFT JOIN developer_apps "
+        "ON developer_apps.developer_id = developers.id GROUP BY developers.id ORDER BY developers.created_at DESC"
+    ).fetchall()
+    moderators = conn.execute("SELECT id, email, status, created_at FROM moderators ORDER BY created_at DESC").fetchall()
+    pending_moderators = conn.execute("SELECT id, email, created_at FROM moderators WHERE status='pending' ORDER BY created_at").fetchall()
+    invitations = conn.execute("SELECT id, expires_at, created_at FROM moderator_invitations WHERE used_at IS NULL AND expires_at > CURRENT_TIMESTAMP ORDER BY created_at DESC").fetchall()
+    conn.close()
+    return dict(submissions=submissions, claims=claims, developer_accounts=developer_accounts,
+                moderators=moderators, pending_moderators=pending_moderators, invitations=invitations)
+
+
+@admin_bp.route("/admin/moderators/<int:moderator_id>/approve", methods=["POST"])
+@requires_auth
+def approve_moderator(moderator_id):
+    if not valid_csrf_token(request.form.get("csrf_token")):
+        return "Form expired. Refresh the page and try again.", 400
+    conn = get_connection()
+    cursor = conn.execute(
+        "UPDATE moderators SET status='active', approved_at=CURRENT_TIMESTAMP "
+        "WHERE id=? AND status='pending'", (moderator_id,)
+    )
+    conn.commit()
+    conn.close()
+    flash("Аккаунт модератора одобрен." if cursor.rowcount else "Заявка уже обработана.", "success")
+    return redirect(url_for("admin.admin_panel", _anchor="admin-requests-panel"))
+
+
+@admin_bp.route("/admin/moderators/<int:moderator_id>/reject", methods=["POST"])
+@requires_auth
+def reject_moderator(moderator_id):
+    if not valid_csrf_token(request.form.get("csrf_token")):
+        return "Form expired. Refresh the page and try again.", 400
+    conn = get_connection()
+    cursor = conn.execute("DELETE FROM moderators WHERE id=? AND status='pending'", (moderator_id,))
+    conn.commit()
+    conn.close()
+    flash("Заявка отклонена." if cursor.rowcount else "Заявка уже обработана.", "success")
+    return redirect(url_for("admin.admin_panel", _anchor="admin-requests-panel"))
+
+
+@admin_bp.route("/admin/moderators/<int:moderator_id>/delete", methods=["POST"])
+@requires_auth
+def delete_moderator(moderator_id):
+    if not valid_csrf_token(request.form.get("csrf_token")):
+        return "Form expired. Refresh the page and try again.", 400
+    conn = get_connection()
+    cursor = conn.execute("DELETE FROM moderators WHERE id=?", (moderator_id,))
+    conn.commit()
+    conn.close()
+    flash("Аккаунт модератора удалён." if cursor.rowcount else "Аккаунт не найден.", "success")
+    return redirect(url_for("admin.admin_panel", _anchor="admin-accounts-panel"))
+
+
+@admin_bp.route("/admin/preview/<int:sub_id>")
+@requires_moderation_access
 def preview_submission(sub_id):
     conn = get_connection()
     conn.row_factory = sqlite3.Row
@@ -137,7 +274,7 @@ def preview_submission(sub_id):
 
 
 @admin_bp.route("/admin/download-package/<int:sub_id>")
-@requires_auth
+@requires_moderation_access
 def download_pending_package(sub_id):
     conn = get_connection()
     conn.row_factory = sqlite3.Row
@@ -195,12 +332,36 @@ def edit_submission(sub_id):
         return jsonify({"error": "Заявка не найдена или уже обработана"}), 404
 
     if request.method == "POST":
+        if not valid_csrf_token(request.form.get("csrf_token")):
+            conn.close()
+            return "Form expired. Refresh the page and try again.", 400
+        icon = request.files.get("icon_file")
+        icon_filename = None
+        if icon and icon.filename:
+            safe_name = secure_filename(icon.filename)
+            icon_data = icon.stream.read(8 * 1024 * 1024 + 1)
+            if (
+                not safe_name.lower().endswith(".png")
+                or len(icon_data) > 8 * 1024 * 1024
+                or not icon_data.startswith(b"\x89PNG\r\n\x1a\n")
+            ):
+                conn.close()
+                return render_template(
+                    "edit.html", submission=submission, categories=categories,
+                    icon_error="Иконка должна быть PNG-файлом размером не больше 8 МБ.",
+                ), 400
+            package_dir = _pending_directory(submission)
+            icon_filename = "icon.png"
+            os.makedirs(package_dir, exist_ok=True)
+            with open(os.path.join(package_dir, icon_filename), "wb") as icon_file:
+                icon_file.write(icon_data)
         cursor.execute(
             """
             UPDATE submissions SET
                 name = ?, developer = ?, category = ?,
                 summary_type = ?, summary_static = ?, summary_ru = ?, summary_en = ?,
-                desc_type = ?, desc_static = ?, desc_ru = ?, desc_en = ?
+                desc_type = ?, desc_static = ?, desc_ru = ?, desc_en = ?,
+                temp_icon_name = COALESCE(?, temp_icon_name)
             WHERE id = ? AND status = 'pending'
             """,
             (
@@ -215,19 +376,20 @@ def edit_submission(sub_id):
                 request.form.get("desc_static", "").strip(),
                 request.form.get("desc_ru", "").strip(),
                 request.form.get("desc_en", "").strip(),
+                icon_filename,
                 sub_id,
             ),
         )
         conn.commit()
         conn.close()
-        return redirect("/admin")
+        return moderation_redirect()
 
     conn.close()
     return render_template("edit.html", submission=submission, categories=categories)
 
 
 @admin_bp.route("/admin/approve/<int:sub_id>", methods=["POST"])
-@requires_auth
+@requires_moderation_access
 def approve_submission(sub_id):
     conn = get_connection()
     conn.row_factory = sqlite3.Row
@@ -305,6 +467,10 @@ def approve_submission(sub_id):
         )
         if sub["submission_type"] == "update":
             prune_published_packages(app_dir, app_id)
+            update_icon_name = os.path.basename(sub["temp_icon_name"] or "")
+            update_icon_path = os.path.join(app_pending_dir, update_icon_name)
+            if update_icon_name and os.path.isfile(update_icon_path):
+                shutil.copy(update_icon_path, os.path.join(app_dir, update_icon_name))
         if sub["submission_type"] != "update":
             shutil.copy(
                 os.path.join(app_pending_dir, sub["temp_icon_name"]),
@@ -386,14 +552,14 @@ def approve_submission(sub_id):
         )
         conn.commit()
         conn.close()
-        return redirect("/admin")
+        return moderation_redirect()
     except Exception as error:
         conn.close()
         return jsonify({"error": f"Ошибка сборки/публикации: {str(error)}"}), 500
 
 
 @admin_bp.route("/admin/reject/<int:sub_id>", methods=["POST"])
-@requires_auth
+@requires_moderation_access
 def reject_submission(sub_id):
     conn = get_connection()
     conn.row_factory = sqlite3.Row
@@ -416,11 +582,11 @@ def reject_submission(sub_id):
         )
         conn.commit()
     conn.close()
-    return redirect("/admin")
+    return moderation_redirect()
 
 
 @admin_bp.route("/pending_uploads/<path:filepath>")
-@requires_auth
+@requires_moderation_access
 def serve_pending_files(filepath):
     return send_from_directory(PENDING_DIR, filepath)
 

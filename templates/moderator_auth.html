@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="ru" data-i18n-page="moderatorAuth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title data-i18n="pageTitle">Аккаунт модератора - MEmarket</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="{{ url_for('static', filename='js/i18n.js') }}" defer data-locale-url="{{ url_for('main.locale_file', locale='ru') }}"></script>
+</head>
+<body>
+    <header>
+        <div class="header-top">
+            <div class="logo-area">
+                <div class="logo-text">Millennium Market</div>
+                <div class="submit-label">Submit</div>
+                <img class="submit-arrow" src="{{ url_for('static', filename='arrow.svg') }}" alt="">
+                <div class="submit-label">Модераторам</div>
+            </div>
+        </div>
+    </header>
+    <main class="submit-page developer-auth-page">
+        <h1 class="submit-heading">{% if mode == 'register' %}Регистрация{% elif mode == 'pending' %}Заявка отправлена{% else %}Вход{% endif %}</h1>
+        {% if error %}<p class="developer-notice error">{{ error }}</p>{% endif %}
+        {% if mode == 'pending' %}<p>Аккаунт создан и ожидает одобрения администратора. Войти можно после одобрения.</p>
+        {% elif mode == 'register' and token %}
+        <form method="post" class="developer-form"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <label for="email">Email</label><input id="email" name="email" type="email" maxlength="254" autocomplete="email" required>
+            <label for="password">Пароль (минимум 12 символов)</label><input id="password" name="password" type="password" minlength="12" autocomplete="new-password" required>
+            <button type="submit">Создать аккаунт</button>
+        </form>
+        {% elif mode == 'login' %}
+        <form method="post" class="developer-form"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <label for="email">Email</label><input id="email" name="email" type="email" autocomplete="email" required>
+            <label for="password">Пароль</label><input id="password" name="password" type="password" autocomplete="current-password" required>
+            <button type="submit">Войти</button>
+        </form>
+        {% endif %}
+        {% if mode == 'pending' %}<p class="site-description"><a href="{{ url_for('moderator.login') }}">Перейти ко входу модератора</a></p>{% endif %}
+    </main>
+
+    <footer>
+        <div class="footer-bottom">
+            <p data-i18n="copyright">© kameton.dev</p>
+            <div class="language-switcher">
+                <label for="language-select" data-i18n="languageLabel">Язык</label>
+                <select id="language-select" aria-label="Язык" data-i18n-aria-label="languageLabel">
+                    <option value="ru" data-i18n="russian">Русский</option>
+                    <option value="en" data-i18n="english">English</option>
+                </select>
+            </div>
+        </div>
+    </footer>
+</body>
+</html>

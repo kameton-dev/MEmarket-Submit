@@ -2,7 +2,7 @@
 <html lang="ru" data-i18n-page="submit">
 <head>
     <meta charset="UTF-8">
-    <title data-i18n="pageTitle">Добавление приложения — MEmarket</title>
+    <title data-i18n="pageTitle">Добавление приложения - MEmarket</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <script src="{{ url_for('static', filename='js/i18n.js') }}" defer data-locale-url="{{ url_for('main.locale_file', locale='ru') }}"></script>
 </head>
@@ -50,7 +50,6 @@
         <div id="extra-fields" class="hidden-fields">
             <section class="manifest-panel" aria-live="polite">
                 <h2 data-i18n="manifestTitle">Информация из манифеста</h2>
-                <p class="manifest-note" data-i18n="manifestNote">Эти данные получены из пакета и доступны только для просмотра.</p>
                 <dl id="manifest-details" class="manifest-details"></dl>
             </section>
             
@@ -97,7 +96,6 @@
                 <div class="form-group">
                     <label data-i18n="screenshots">Скриншоты</label>
                     <div id="screenshots-list" class="screenshots-list"></div>
-                    <p class="file-hint" data-i18n="screenshotsNote">Загруженные скриншоты будут сохранены в папке screenshots/.</p>
                 </div>
 
                 <div class="form-group">
@@ -147,15 +145,17 @@
                         <button type="button" class="toggle-btn" onclick="setDescType('multilingual')" data-i18n="multilingual">Мультиязычное (RU + EN)</button>
                     </div>
                     <input type="hidden" name="desc_type" id="desc_type" value="static">
-                    <div id="desc-static-box">
-                        <textarea name="desc_static" rows="6" placeholder="Полное описание приложения..." data-i18n-placeholder="fullDescription"></textarea>
-                    </div>
-                    <div id="desc-multi-box" style="display: none;">
-                        <textarea name="desc_ru" rows="5" placeholder="Описание на русском..." data-i18n-placeholder="descriptionRuPlaceholder" style="margin-bottom: 8px;"></textarea>
-                        <textarea name="desc_en" rows="5" placeholder="Description in English..." data-i18n-placeholder="descriptionEnPlaceholder"></textarea>
-                    </div>
                     <button type="button" id="markdown-preview-toggle" class="toggle-btn markdown-preview-toggle" aria-expanded="false" data-i18n="markdownPreview">Предпросмотр Markdown</button>
-                    <div id="markdown-preview" class="markdown-preview" hidden aria-live="polite"></div>
+                    <div id="description-editor-preview" class="markdown-editor-preview">
+                        <div id="desc-static-box">
+                            <textarea name="desc_static" rows="8" placeholder="Полное описание приложения..." data-i18n-placeholder="fullDescription"></textarea>
+                        </div>
+                        <div id="desc-multi-box" style="display: none;">
+                            <textarea name="desc_ru" rows="5" placeholder="Описание на русском..." data-i18n-placeholder="descriptionRuPlaceholder" style="margin-bottom: 8px;"></textarea>
+                            <textarea name="desc_en" rows="5" placeholder="Description in English..." data-i18n-placeholder="descriptionEnPlaceholder"></textarea>
+                        </div>
+                        <div id="markdown-preview" class="markdown-preview" hidden aria-live="polite"></div>
+                    </div>
                 </div>
 
                 <button type="submit" data-i18n="submit">Отправить на модерацию</button>
@@ -227,8 +227,10 @@
 
         const markdownPreview = document.getElementById('markdown-preview');
         const markdownToggle = document.getElementById('markdown-preview-toggle');
+        const descriptionEditorPreview = document.getElementById('description-editor-preview');
         markdownToggle.addEventListener('click', function() {
             markdownPreview.hidden = !markdownPreview.hidden;
+            descriptionEditorPreview.classList.toggle('preview-open', !markdownPreview.hidden);
             this.setAttribute('aria-expanded', String(!markdownPreview.hidden));
             this.textContent = markdownPreview.hidden ? translate('markdownPreview') : translate('hidePreview');
             if (!markdownPreview.hidden) renderMarkdownPreview();
@@ -437,11 +439,30 @@
     function renderManifestInfo(info) {
         const details = document.getElementById('manifest-details');
         details.innerHTML = '';
-        Object.entries(info).forEach(([key, value]) => {
+        const fields = [
+            ['app_type', 'manifestAppType'],
+            ['capabilities', 'manifestCapabilities'],
+            ['minimum_version', 'manifestMinimumVersion'],
+            ['version', 'manifestVersion']
+        ];
+        fields.forEach(([key, labelKey]) => {
+            if (!Object.prototype.hasOwnProperty.call(info, key)) return;
+            const value = info[key];
             const term = document.createElement('dt');
             const description = document.createElement('dd');
-            term.textContent = key.replaceAll('_', ' ');
-            description.textContent = typeof value === 'object' ? JSON.stringify(value) : String(value);
+            term.textContent = translate(labelKey);
+            if (key === 'app_type') {
+                const typeLabels = {
+                    xap: 'manifestTypeXap',
+                    uwp: 'manifestTypeUwp',
+                    uwp_bundle: 'manifestTypeUwpBundle'
+                };
+                description.textContent = typeLabels[value] ? translate(typeLabels[value]) : String(value);
+            } else if (Array.isArray(value)) {
+                description.textContent = value.length ? value.join(', ') : translate('manifestNone');
+            } else {
+                description.textContent = value == null || value === '' ? '-' : translateMessage(String(value));
+            }
             details.append(term, description);
         });
     }

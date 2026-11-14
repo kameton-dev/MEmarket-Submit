@@ -2,7 +2,7 @@
 <html lang="ru" data-i18n-page="preview">
 <head>
     <meta charset="UTF-8">
-    <title data-i18n="pageTitle" data-i18n-app="{{ submission['name'] }}">{{ submission['name'] }} — Предпросмотр</title>
+    <title data-i18n="pageTitle" data-i18n-app="{{ submission['name'] }}">{{ submission['name'] }} - Предпросмотр</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <script src="{{ url_for('static', filename='js/i18n.js') }}" defer data-locale-url="{{ url_for('main.locale_file', locale='ru') }}"></script>
 </head>
@@ -19,7 +19,7 @@
     </header>
 
     <main class="admin-page preview-page">
-        <p class="site-description"><a href="{{ url_for('admin.admin_panel') }}">Назад</a></p>
+        <p class="site-description"><a href="{{ url_for('moderator.dashboard') if session.get('moderator_id') else url_for('admin.admin_panel') }}">Назад</a></p>
 
         {% if submission['temp_banner_name'] %}
             <img class="app-banner" src="{{ url_for('admin.serve_pending_files', filepath=(submission['storage_key'] or submission['app_id']) ~ '/' ~ submission['temp_banner_name']) }}" alt="Баннер {{ submission['name'] }}">
@@ -70,7 +70,7 @@
                 <h2>Данные приложения</h2>
                 <dl class="manifest-details">
                     <dt>Краткое описание</dt>
-                    <dd>{% if submission['summary_type'] == 'static' %}{{ submission['summary_static'] or 'Не заполнено' }}{% else %}RU: {{ submission['summary_ru'] or '—' }}; EN: {{ submission['summary_en'] or '—' }}{% endif %}</dd>
+                    <dd>{% if submission['summary_type'] == 'static' %}{{ submission['summary_static'] or 'Не заполнено' }}{% else %}RU: {{ submission['summary_ru'] or '-' }}; EN: {{ submission['summary_en'] or '-' }}{% endif %}</dd>
                     {% for key, value in manifest_info.items() %}
                         <dt>{{ key|replace('_', ' ') }}</dt>
                         <dd>{{ value }}</dd>

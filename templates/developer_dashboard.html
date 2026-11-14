@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title data-i18n="pageTitle">Кабинет разработчика — MEmarket</title>
+    <title data-i18n="pageTitle">Кабинет разработчика - MEmarket</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <script src="{{ url_for('static', filename='js/i18n.js') }}" defer data-locale-url="{{ url_for('main.locale_file', locale='ru') }}"></script>
 </head>
@@ -102,7 +102,7 @@
                         {% for submission in pending_submissions %}
                             <li>
                                 {{ submission['name'] }} (<code>{{ submission['app_id'] }}</code>)
-                                — {% if submission['submission_type'] == 'update' %}обновление {{ submission['package_version'] or '' }}{% else %}новое приложение{% endif %}
+                                - {% if submission['submission_type'] == 'update' %}обновление {{ submission['package_version'] or '' }}{% else %}новое приложение{% endif %}
                             </li>
                         {% endfor %}
                     </ul>
@@ -127,7 +127,7 @@
                     <h3>Мои запросы</h3>
                     <ul class="developer-claim-list">
                         {% for claim in claims %}
-                            <li><code>{{ claim['app_id'] }}</code> — {{ {'pending': 'На проверке', 'approved': 'Подтверждён', 'rejected': 'Отклонён'}.get(claim['status'], claim['status']) }}</li>
+                            <li><code>{{ claim['app_id'] }}</code> - {{ {'pending': 'На проверке', 'approved': 'Подтверждён', 'rejected': 'Отклонён'}.get(claim['status'], claim['status']) }}</li>
                         {% endfor %}
                     </ul>
                 {% endif %}-->
